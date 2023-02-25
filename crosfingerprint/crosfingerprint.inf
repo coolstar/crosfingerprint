@@ -1,0 +1,70 @@
+;/*++
+;
+;Copyright (c) CoolStar.  All rights reserved.
+;
+;Module Name:
+;    coolstar.inf
+;
+;Abstract:
+;    INF file for installing the TS3A227E Jack Detect Driver 
+;
+;
+;--*/
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = Biometric
+ClassGuid   = {53D29EF7-377C-4D14-864B-EB3A85769359}
+Provider    = CoolStar
+DriverVer   = 2/23/2022,1.0.0
+CatalogFile = crosfingerprint.cat
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+; ================= Class section =====================
+
+[SourceDisksNames]
+1 = %DiskId1%,,,""
+
+[SourceDisksFiles]
+crosfingerprint.sys  = 1,,
+
+;*****************************************
+; crosfingerprint  Install Section
+;*****************************************
+
+[Manufacturer]
+%StdMfg%=Standard,NTAMD64
+
+; Decorated model section take precedence over undecorated 
+; ones on XP and later.
+[Standard.NTAMD64]
+%crosfingerprint.DeviceDesc%=CrosFp_Device, ACPI\CRFP0000
+
+[CrosFp_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+crosfingerprint.sys
+
+;-------------- Service installation
+[CrosFp_Device.NT.Services]
+AddService = crosfingerprint,%SPSVCINST_ASSOCSERVICE%, CrosFp_Service_Inst
+
+; -------------- crosfingerprint driver install sections
+[CrosFp_Service_Inst]
+DisplayName    = %crosfingerprint.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START 
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\crosfingerprint.sys
+LoadOrderGroup = Base
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+StdMfg                 = "CoolStar"
+DiskId1                = "CrosFP Installation Disk #1"
+crosfingerprint.DeviceDesc = "Chromebook Fingerprint Sensor"
+crosfingerprint.SVCDESC    = "CrosFP Service"
