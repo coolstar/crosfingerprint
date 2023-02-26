@@ -20,51 +20,62 @@ DriverVer   = 2/23/2022,1.0.0
 CatalogFile = crosfingerprint.cat
 PnpLockdown=1
 
-[DestinationDirs]
-DefaultDestDir = 12
-
 ; ================= Class section =====================
 
-[SourceDisksNames]
-1 = %DiskId1%,,,""
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%DeviceName%=CrosFp_Device, ACPI\CRFP0000 ; TODO: edit hw-id
 
 [SourceDisksFiles]
-crosfingerprint.sys  = 1,,
+crosfingerprint.dll=1
 
-;*****************************************
-; crosfingerprint  Install Section
-;*****************************************
+[SourceDisksNames]
+1 = %DiskName%
 
-[Manufacturer]
-%StdMfg%=Standard,NTAMD64
-
-; Decorated model section take precedence over undecorated 
-; ones on XP and later.
-[Standard.NTAMD64]
-%crosfingerprint.DeviceDesc%=CrosFp_Device, ACPI\CRFP0000
+; =================== UMDF Device ==================================
 
 [CrosFp_Device.NT]
-CopyFiles=Drivers_Dir
+CopyFiles=UMDriverCopy
 
-[Drivers_Dir]
-crosfingerprint.sys
+[CrosFp_Device.NT.hw]
 
-;-------------- Service installation
 [CrosFp_Device.NT.Services]
-AddService = crosfingerprint,%SPSVCINST_ASSOCSERVICE%, CrosFp_Service_Inst
+AddService=WUDFRd,0x000001fa,WUDFRD_ServiceInstall
+
+[CrosFp_Device.NT.CoInstallers]
+AddReg=CoInstallers_AddReg
+
+[CrosFp_Device.NT.Wdf]
+UmdfService=crosfingerprint,crosfingerprint_Install
+UmdfServiceOrder=crosfingerprint
+
+[crosfingerprint_Install]
+UmdfLibraryVersion=$UMDFVERSION$ 
+ServiceBinary=%12%\UMDF\crosfingerprint.dll
 
 ; -------------- crosfingerprint driver install sections
-[CrosFp_Service_Inst]
-DisplayName    = %crosfingerprint.SVCDESC%
-ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
-StartType      = 3               ; SERVICE_DEMAND_START 
-ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
-ServiceBinary  = %12%\crosfingerprint.sys
-LoadOrderGroup = Base
+[WUDFRD_ServiceInstall]
+DisplayName = %WudfRdDisplayName%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\WUDFRd.sys
+
+[CoInstallers_AddReg]
+HKR,,CoInstallers32,0x00010000,"WUDFCoinstaller.dll"
+
+[DestinationDirs]
+UMDriverCopy=12,UMDF ; copy to drivers\umdf
+
+[UMDriverCopy]
+crosfingerprint.dll
+
+; =================== Generic ==================================
 
 [Strings]
-SPSVCINST_ASSOCSERVICE= 0x00000002
-StdMfg                 = "CoolStar"
-DiskId1                = "CrosFP Installation Disk #1"
-crosfingerprint.DeviceDesc = "Chromebook Fingerprint Sensor"
-crosfingerprint.SVCDESC    = "CrosFP Service"
+ManufacturerName                 = "CoolStar"
+DiskName                = "CrosFP Installation Disk #1"
+WudfRdDisplayName="Windows Driver Foundation - User-mode Driver Framework Reflector"
+DeviceName = "Chromebook Fingerprint Sensor"

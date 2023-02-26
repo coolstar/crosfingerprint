@@ -1,14 +1,3 @@
-#pragma warning(disable:4200)  // suppress nameless struct/union warning
-#pragma warning(disable:4201)  // suppress nameless struct/union warning
-#pragma warning(disable:4214)  // suppress bit field types other than int warning
-#include <initguid.h>
-#include <wdm.h>
-
-#pragma warning(default:4200)
-#pragma warning(default:4201)
-#pragma warning(default:4214)
-#include <wdf.h>
-
 #include "crosfingerprint.h"
 #include "ec_commands.h"
 
@@ -60,15 +49,14 @@
 static ULONG CrosFPDebugLevel = 100;
 static ULONG CrosFPDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
 
-static NTSTATUS cros_ec_spi_receive_response(PCROSFP_CONTEXT pDevice, int need_len, int foundPreamble, int readLen, UINT8* buf, unsigned int buf_len) {
+static NTSTATUS cros_ec_spi_receive_response(PCROSFP_CONTEXT pDevice, ULONG need_len, int foundPreamble, int readLen, UINT8* buf, unsigned int buf_len) {
 	if (buf_len < EC_MSG_PREAMBLE_COUNT)
 		return STATUS_INVALID_PARAMETER;
 
-	LARGE_INTEGER CurrentTimestamp;
-	KeQuerySystemTime(&CurrentTimestamp);
+	DWORD CurrentTimestamp = GetTickCount();
 
-	LARGE_INTEGER deadline = CurrentTimestamp;
-	deadline.QuadPart += (EC_MSG_DEADLINE_MS * 1000 * 10);
+	DWORD deadline = CurrentTimestamp;
+	deadline += EC_MSG_DEADLINE_MS;
 
 	NTSTATUS status;
 	UINT8* ptr, * end;
@@ -98,8 +86,8 @@ static NTSTATUS cros_ec_spi_receive_response(PCROSFP_CONTEXT pDevice, int need_l
 			if (ptr != end)
 				break;
 
-			KeQuerySystemTime(&CurrentTimestamp);
-			if (deadline.QuadPart > CurrentTimestamp.QuadPart) {
+			CurrentTimestamp = GetTickCount();
+			if (deadline > CurrentTimestamp) {
 				return STATUS_IO_TIMEOUT;
 			}
 		}
@@ -109,7 +97,7 @@ static NTSTATUS cros_ec_spi_receive_response(PCROSFP_CONTEXT pDevice, int need_l
 	 * ptr now points to the header byte. Copy any valid data to the
 	 * start of our buffer
 	 */
-	int todo = end - ++ptr;
+	ULONG todo = end - ++ptr;
 	todo = min(todo, need_len);
 	RtlMoveMemory(buf, ptr, todo);
 	ptr = buf + todo;
@@ -150,8 +138,8 @@ NTSTATUS cros_ec_pkt_xfer(
 	unsigned int din_len = sizeof(struct ec_host_response) + msg->InSize;
 	din_len = max(din_len, dout_len);
 
-	UINT8* dout = ExAllocatePoolWithTag(NonPagedPool, dout_len, CROSFP_POOL_TAG);
-	UINT8* din = ExAllocatePoolWithTag(NonPagedPool, din_len, CROSFP_POOL_TAG);
+	UINT8* dout = malloc(dout_len);
+	UINT8* din = malloc(din_len);
 	if (!dout || !din) {
 		status = STATUS_NO_MEMORY;
 		goto out;
@@ -207,7 +195,7 @@ NTSTATUS cros_ec_pkt_xfer(
 	}
 
 	INT foundPreamble = -1;
-	for (int i = 0; i < dout_len; i++) {
+	for (unsigned int i = 0; i < dout_len; i++) {
 		UINT8 rx_byte = din[i];
 		if (rx_byte == EC_SPI_FRAME_START) {
 			CrosFPPrint(
@@ -275,6 +263,12 @@ NTSTATUS cros_ec_pkt_xfer(
 		status = STATUS_DATA_CHECKSUM_ERROR;
 	}
 
+	CrosFPPrint(
+		DEBUG_LEVEL_ERROR,
+		DBG_IOCTL,
+		"Pkt xfer success\n"
+	);
+
 	status = STATUS_SUCCESS;
 
 out:
@@ -282,11 +276,11 @@ out:
 		SpbUnlockController(&pDevice->SpbContext);
 
 	if (dout) {
-		ExFreePoolWithTag(dout, CROSFP_POOL_TAG);
+		free(dout);
 	}
 
 	if (din) {
-		ExFreePoolWithTag(din, CROSFP_POOL_TAG);
+		free(din);
 	}
 
 	return status;
@@ -294,11 +288,11 @@ out:
 
 NTSTATUS cros_ec_command (
 	PCROSFP_CONTEXT pDevice,
-	int command, int version,
-	const void* outdata, int outsize,
-	void* indata, int insize
+	UINT16 command, UINT8 version,
+	const void* outdata, UINT16 outsize,
+	void* indata, UINT16 insize
 ) {
-	PCROSEC_COMMAND msg = ExAllocatePoolWithTag(NonPagedPool, sizeof(CROSEC_COMMAND) + max(insize, outsize), CROSFP_POOL_TAG);
+	PCROSEC_COMMAND msg = malloc(sizeof(CROSEC_COMMAND) + max(insize, outsize));
 	if (!msg) {
 		return STATUS_NO_MEMORY;
 	}
@@ -314,7 +308,7 @@ NTSTATUS cros_ec_command (
 
 	memcpy(indata, msg->Data, insize);
 
-	ExFreePoolWithTag(msg, CROSFP_POOL_TAG);
+	free(msg);
 
 	return status;
 }
@@ -326,7 +320,7 @@ NTSTATUS cros_ec_command (
  * @param pmask		Destination for version mask; will be set to 0 on
  *			error.
  */
-static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, int cmd, UINT32* pmask) {
+static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, UINT8 cmd, UINT32* pmask) {
 	struct ec_params_get_cmd_versions_v1 pver_v1;
 	struct ec_params_get_cmd_versions pver;
 	struct ec_response_get_cmd_versions rver;

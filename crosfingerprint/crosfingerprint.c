@@ -203,11 +203,11 @@ Status
 		r.version_string_ro[sizeof(r.version_string_ro) - 1] = '\0';
 		r.version_string_rw[sizeof(r.version_string_rw) - 1] = '\0';
 
-		DbgPrint("EC RO Version: %s\n", r.version_string_ro);
-		DbgPrint("EC RW Version: %s\n", r.version_string_rw);
+		DebugLog("EC RO Version: %s\n", r.version_string_ro);
+		DebugLog("EC RW Version: %s\n", r.version_string_rw);
 	}
 	else {
-		DbgPrint("EC Command failed with status %x\n", status);
+		DebugLog("EC Command failed with status %x\n", status);
 	}
 
 	return status;
@@ -371,7 +371,7 @@ CrosFPEvtDeviceAdd(
 		NULL);
 	interruptConfig.PassiveHandling = TRUE;
 
-	status = WdfInterruptCreate(
+	/*status = WdfInterruptCreate(
 		device,
 		&interruptConfig,
 		WDF_NO_OBJECT_ATTRIBUTES,
@@ -380,11 +380,11 @@ CrosFPEvtDeviceAdd(
 	if (!NT_SUCCESS(status))
 	{
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
-			"Error creating WDF interrupt object - %!STATUS!",
+			"Error creating WDF interrupt object - 0x%x",
 			status);
 
 		return status;
-	}
+	}*/ //Crashing in UMDF
 
 	return status;
 }

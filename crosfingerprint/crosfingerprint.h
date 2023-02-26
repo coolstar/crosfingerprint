@@ -5,7 +5,7 @@
 #pragma warning(disable:4201)  // suppress nameless struct/union warning
 #pragma warning(disable:4214)  // suppress bit field types other than int warning
 #include <initguid.h>
-#include <wdm.h>
+#include <Windows.h>
 
 #pragma warning(default:4200)
 #pragma warning(default:4201)
@@ -13,9 +13,9 @@
 #include <wdf.h>
 
 #include <acpiioct.h>
-#include <ntstrsafe.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "spb.h"
 
@@ -24,17 +24,16 @@
 //
 
 #define DRIVERNAME                 "crosfingerprint.sys: "
-
 #define CROSFP_POOL_TAG            (ULONG) 'pFrC'
 
 #define true 1
 #define false 0
 
 typedef struct _CROSEC_COMMAND {
-    UINT32 Version;
-    UINT32 Command;
-    UINT32 OutSize;
-    UINT32 InSize;
+    UINT8 Version;
+    UINT16 Command;
+    UINT16 OutSize;
+    UINT16 InSize;
     UINT32 Result;
     UINT8 Data[];
 } CROSEC_COMMAND, * PCROSEC_COMMAND;
@@ -75,9 +74,9 @@ NTSTATUS cros_ec_pkt_xfer(
 
 NTSTATUS cros_ec_command(
     PCROSFP_CONTEXT pDevice,
-    int command, int version,
-    const void* outdata, int outsize,
-    void* indata, int insize
+    UINT16 command, UINT8 version,
+    const void* outdata, UINT16 outsize,
+    void* indata, UINT16 insize
 );
 
 //
@@ -93,12 +92,12 @@ NTSTATUS cros_ec_command(
 #define DBG_IOCTL 4
 
 #if 1
+void DebugLog(const char* format, ...);
 #define CrosFPPrint(dbglevel, dbgcatagory, fmt, ...) {          \
     if (CrosFPDebugLevel >= dbglevel &&                         \
         (CrosFPDebugCatagories && dbgcatagory))                 \
 	    {                                                           \
-        DbgPrint(DRIVERNAME);                                   \
-        DbgPrint(fmt, __VA_ARGS__);                             \
+        DebugLog(fmt, __VA_ARGS__);                             \
 	    }                                                           \
 }
 #else

@@ -5,11 +5,6 @@ VisualStudioVersion = 16.0.31829.152
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "crosfingerprint", "crosfingerprint\crosfingerprint.vcxproj", "{36580C07-EDC3-4C2B-B45F-6AB017E01A5D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "crosfingerprint Package", "crosfingerprint Package\crosfingerprint Package.vcxproj", "{3DAE7ED3-003A-4495-8352-3D7B5B5D846F}"
-	ProjectSection(ProjectDependencies) = postProject
-		{36580C07-EDC3-4C2B-B45F-6AB017E01A5D} = {36580C07-EDC3-4C2B-B45F-6AB017E01A5D}
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32

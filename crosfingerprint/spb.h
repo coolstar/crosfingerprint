@@ -20,7 +20,7 @@ Revision History:
 
 #pragma once
 
-#include <wdm.h>
+#include <Windows.h>
 #include <wdf.h>
 
 #define DEFAULT_SPB_BUFFER_SIZE 64
