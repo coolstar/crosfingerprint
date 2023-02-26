@@ -44,6 +44,17 @@ DriverEntry(
 	return status;
 }
 
+BOOLEAN OnInterruptIsr(
+	WDFINTERRUPT Interrupt,
+	ULONG MessageID) {
+	UNREFERENCED_PARAMETER(MessageID);
+
+	WDFDEVICE Device = WdfInterruptGetDevice(Interrupt);
+	PCROSFP_CONTEXT pDevice = GetDeviceContext(Device);
+
+	return true;
+}
+
 NTSTATUS
 OnPrepareHardware(
 	_In_  WDFDEVICE     FxDevice,
@@ -71,8 +82,9 @@ Status
 --*/
 {
 	PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
-	BOOLEAN fSPIResourceFound = FALSE;
+	BOOLEAN fSPIResourceFound = FALSE, fIRQResourceFound = FALSE;
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
+	WDF_INTERRUPT_CONFIG interruptConfig;
 
 	UNREFERENCED_PARAMETER(FxResourcesRaw);
 
@@ -84,12 +96,14 @@ Status
 
 	for (ULONG i = 0; i < resourceCount; i++)
 	{
-		PCM_PARTIAL_RESOURCE_DESCRIPTOR pDescriptor;
+		PCM_PARTIAL_RESOURCE_DESCRIPTOR pDescriptor, pDescriptorRaw;
 		UCHAR Class;
 		UCHAR Type;
 
 		pDescriptor = WdfCmResourceListGetDescriptor(
 			FxResourcesTranslated, i);
+		pDescriptorRaw = WdfCmResourceListGetDescriptor(
+			FxResourcesRaw, i);
 
 		switch (pDescriptor->Type)
 		{
@@ -111,6 +125,31 @@ Status
 				}
 			}
 			break;
+		case CmResourceTypeInterrupt:
+			WDF_INTERRUPT_CONFIG_INIT(
+				&interruptConfig,
+				OnInterruptIsr,
+				NULL);
+			interruptConfig.PassiveHandling = TRUE;
+			interruptConfig.InterruptRaw = pDescriptorRaw;
+			interruptConfig.InterruptTranslated = pDescriptor;
+			fIRQResourceFound = TRUE;
+
+			status = WdfInterruptCreate(
+				pDevice->FxDevice,
+				&interruptConfig,
+				WDF_NO_OBJECT_ATTRIBUTES,
+				&pDevice->Interrupt);
+
+			if (!NT_SUCCESS(status))
+			{
+				CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+					"Error creating WDF interrupt object - 0x%x",
+					status);
+
+				return status;
+			}
+			break;
 		default:
 			//
 			// Ignoring all other resource types.
@@ -123,7 +162,7 @@ Status
 	// An SPB resource is required.
 	//
 
-	if (fSPIResourceFound == FALSE)
+	if (fSPIResourceFound == FALSE || fIRQResourceFound == FALSE)
 	{
 		status = STATUS_NOT_FOUND;
 	}
@@ -243,18 +282,6 @@ Status
 	return STATUS_SUCCESS;
 }
 
-
-BOOLEAN OnInterruptIsr(
-	WDFINTERRUPT Interrupt,
-	ULONG MessageID) {
-	UNREFERENCED_PARAMETER(MessageID);
-
-	WDFDEVICE Device = WdfInterruptGetDevice(Interrupt);
-	PCROSFP_CONTEXT pDevice = GetDeviceContext(Device);
-
-	return true;
-}
-
 NTSTATUS
 CrosFPEvtDeviceAdd(
 	IN WDFDRIVER       Driver,
@@ -361,30 +388,6 @@ CrosFPEvtDeviceAdd(
 
 		return status;
 	}
-
-	//
-	// Create an interrupt object for hardware notifications
-	//
-	WDF_INTERRUPT_CONFIG_INIT(
-		&interruptConfig,
-		OnInterruptIsr,
-		NULL);
-	interruptConfig.PassiveHandling = TRUE;
-
-	/*status = WdfInterruptCreate(
-		device,
-		&interruptConfig,
-		WDF_NO_OBJECT_ATTRIBUTES,
-		&devContext->Interrupt);
-
-	if (!NT_SUCCESS(status))
-	{
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
-			"Error creating WDF interrupt object - 0x%x",
-			status);
-
-		return status;
-	}*/ //Crashing in UMDF
 
 	return status;
 }
