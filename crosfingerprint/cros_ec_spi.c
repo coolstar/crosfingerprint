@@ -46,85 +46,8 @@
 #define EC_SPI_RECOVERY_TIME_NS	(200 * 1000)
 
 
-static ULONG CrosFPDebugLevel = 100;
+static ULONG CrosFPDebugLevel = 0;
 static ULONG CrosFPDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
-
-static NTSTATUS cros_ec_spi_receive_response(PCROSFP_CONTEXT pDevice, ULONG need_len, int foundPreamble, int readLen, UINT8* buf, unsigned int buf_len) {
-	if (buf_len < EC_MSG_PREAMBLE_COUNT)
-		return STATUS_INVALID_PARAMETER;
-
-	DWORD CurrentTimestamp = GetTickCount();
-
-	DWORD deadline = CurrentTimestamp;
-	deadline += EC_MSG_DEADLINE_MS;
-
-	NTSTATUS status;
-	UINT8* ptr, * end;
-
-	if (foundPreamble > -1) {
-		ptr = buf + foundPreamble;
-		end = buf + readLen;
-	}
-	else {
-		while (true) {
-			status = SpbReadDataSynchronously(&pDevice->SpbContext, buf, EC_MSG_PREAMBLE_COUNT);
-			if (!NT_SUCCESS(status)) {
-				return status;
-			}
-
-			ptr = buf;
-			for (end = ptr + EC_MSG_PREAMBLE_COUNT; ptr != end; ptr++) {
-				if (*ptr == EC_SPI_FRAME_START) {
-					CrosFPPrint(
-						DEBUG_LEVEL_INFO,
-						DBG_IOCTL,
-						"msg found at %zd\n",
-						ptr - buf);
-					break;
-				}
-			}
-			if (ptr != end)
-				break;
-
-			CurrentTimestamp = GetTickCount();
-			if (deadline > CurrentTimestamp) {
-				return STATUS_IO_TIMEOUT;
-			}
-		}
-	}
-
-	/*
-	 * ptr now points to the header byte. Copy any valid data to the
-	 * start of our buffer
-	 */
-	ULONG todo = end - ++ptr;
-	todo = min(todo, need_len);
-	RtlMoveMemory(buf, ptr, todo);
-	ptr = buf + todo;
-	CrosFPPrint(
-		DEBUG_LEVEL_INFO,
-		DBG_IOCTL,
-		"need %d, got %d bytes from preamble\n",
-		need_len, todo);
-
-	/* Receive data until we have it all */
-	while (need_len > 0) {
-		/*
-		 * We can't support transfers larger than the SPI FIFO size
-		 * unless we have DMA.
-		 */
-		todo = min(need_len, 256);
-
-		status = SpbReadDataSynchronously(&pDevice->SpbContext, ptr, todo);
-		if (!NT_SUCCESS(status)) {
-			return status;
-		}
-
-		ptr += todo;
-		need_len -= todo;
-	}
-	return STATUS_SUCCESS;
-}
 
 NTSTATUS cros_ec_pkt_xfer(
 	PCROSFP_CONTEXT pDevice,
@@ -136,7 +59,6 @@ NTSTATUS cros_ec_pkt_xfer(
 
 	unsigned int dout_len = sizeof(struct ec_host_request) + msg->OutSize;
 	unsigned int din_len = sizeof(struct ec_host_response) + msg->InSize;
-	din_len = max(din_len, dout_len);
 
 	UINT8* dout = malloc(dout_len);
 	UINT8* din = malloc(din_len);
@@ -185,7 +107,7 @@ NTSTATUS cros_ec_pkt_xfer(
 		goto out;
 	}
 
-	status = SpbXferDataSynchronously(&pDevice->SpbContext, dout, dout_len, din, dout_len);
+	status = SpbWriteDataSynchronously(&pDevice->SpbContext, dout, dout_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
 			DEBUG_LEVEL_ERROR,
@@ -194,32 +116,32 @@ NTSTATUS cros_ec_pkt_xfer(
 		goto out;
 	}
 
-	INT foundPreamble = -1;
-	for (unsigned int i = 0; i < dout_len; i++) {
-		UINT8 rx_byte = din[i];
-		if (rx_byte == EC_SPI_FRAME_START) {
-			CrosFPPrint(
-				DEBUG_LEVEL_INFO,
-				DBG_IOCTL,
-				"Found preamble at %d\n", i);
-			foundPreamble = i;
+	DWORD Timeout = GetTickCount() + EC_MSG_DEADLINE_MS;
+	while (TRUE) {
+		UINT8 byte = 0;
+		status = SpbReadDataSynchronously(&pDevice->SpbContext, &byte, sizeof(byte));
+		if (!NT_SUCCESS(status)) {
 			break;
 		}
-		if (rx_byte == EC_SPI_PAST_END ||
-			rx_byte == EC_SPI_RX_BAD_DATA ||
-			rx_byte == EC_SPI_NOT_READY) {
-			CrosFPPrint(
-				DEBUG_LEVEL_ERROR,
-				DBG_IOCTL,
-				"Read 0x%x. Retry needed\n", rx_byte);
-			status = STATUS_RETRY;
+
+		if (GetTickCount() > Timeout) {
+			status = STATUS_IO_TIMEOUT;
 			break;
 		}
-	}
-	if (NT_SUCCESS(status)) {
-		status = cros_ec_spi_receive_response(pDevice, sizeof(struct ec_host_response) + msg->InSize, foundPreamble, dout_len, din, din_len);
+		
+		if (byte == EC_SPI_FRAME_START)
+			break;
 	}
 
+	if (!NT_SUCCESS(status)) {
+		CrosFPPrint(
+			DEBUG_LEVEL_ERROR,
+			DBG_IOCTL,
+			"Error receiving SPI framing byte: %x\n", status);
+		goto out;
+	}
+
+	status = SpbReadDataSynchronously(&pDevice->SpbContext, din, din_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
 			DEBUG_LEVEL_ERROR,

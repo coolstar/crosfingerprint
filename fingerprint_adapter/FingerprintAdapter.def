@@ -1,0 +1,6 @@
+LIBRARY	FingerprintAdapter
+
+EXPORTS
+    WbioQuerySensorInterface
+    WbioQueryEngineInterface
+    WbioQueryStorageInterface

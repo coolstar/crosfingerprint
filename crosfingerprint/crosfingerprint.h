@@ -12,7 +12,9 @@
 #pragma warning(default:4214)
 #include <wdf.h>
 
-#include <acpiioct.h>
+#include <winbio_types.h>
+#include <winbio_err.h>
+#include <winbio_ioctl.h>
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -29,6 +31,12 @@
 #define true 1
 #define false 0
 
+#define FP_MODE_ANY_CAPTURE \
+	(FP_MODE_CAPTURE | FP_MODE_ENROLL_IMAGE | FP_MODE_MATCH)
+#define FP_MODE_ANY_DETECT_FINGER \
+	(FP_MODE_FINGER_DOWN | FP_MODE_FINGER_UP | FP_MODE_ANY_CAPTURE)
+#define FP_MODE_ANY_WAIT_IRQ (FP_MODE_FINGER_DOWN | FP_MODE_ANY_CAPTURE)
+
 typedef struct _CROSEC_COMMAND {
     UINT8 Version;
     UINT16 Command;
@@ -43,11 +51,15 @@ typedef struct _CROSFP_CONTEXT
 
 	WDFDEVICE FxDevice;
 
-	WDFQUEUE ReportQueue;
+    WDFQUEUE Queue;
 
 	SPB_CONTEXT SpbContext;
 
 	WDFINTERRUPT Interrupt;
+    WDFREQUEST CurrentCapture;
+
+    BOOLEAN DeviceReady;
+    BOOLEAN DeviceCalibrated;
 
 } CROSFP_CONTEXT, *PCROSFP_CONTEXT;
 
@@ -65,7 +77,41 @@ EVT_WDF_DRIVER_DEVICE_ADD CrosFPEvtDeviceAdd;
 
 EVT_WDFDEVICE_WDM_IRP_PREPROCESS CrosFPEvtWdmPreprocessMnQueryId;
 
-EVT_WDF_IO_QUEUE_IO_INTERNAL_DEVICE_CONTROL CrosFPEvtInternalDeviceControl;
+EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL CrosFPEvtIoDeviceControl;
+
+NTSTATUS CrosFPSensorStatus
+(
+    _In_ PCROSFP_CONTEXT devContext,
+    PWINBIO_SENSOR_STATUS sensorMode
+);
+
+NTSTATUS CrosFPCheck(_In_ PCROSFP_CONTEXT devContext);
+
+NTSTATUS GetFingerprintAttributes(
+    IN WDFREQUEST   Request
+);
+
+NTSTATUS GetSensorStatus(
+    IN PCROSFP_CONTEXT   devContext,
+    IN WDFREQUEST   Request
+);
+
+NTSTATUS CalibrateSensor(
+    IN PCROSFP_CONTEXT   devContext,
+    IN WDFREQUEST   Request
+);
+
+NTSTATUS
+CaptureFpData(
+    IN PCROSFP_CONTEXT   devContext,
+    IN WDFREQUEST   Request,
+    IN PBOOLEAN		CompleteRequest
+);
+
+void CompleteFPRequest(
+    IN PCROSFP_CONTEXT   devContext,
+    IN UINT32 fp_events
+);
 
 NTSTATUS cros_ec_pkt_xfer(
     PCROSFP_CONTEXT pDevice,
@@ -94,7 +140,7 @@ NTSTATUS cros_ec_command(
 #if 1
 void DebugLog(const char* format, ...);
 #define CrosFPPrint(dbglevel, dbgcatagory, fmt, ...) {          \
-    if (CrosFPDebugLevel >= dbglevel &&                         \
+    if (CrosFPDebugLevel <= dbglevel &&                         \
         (CrosFPDebugCatagories && dbgcatagory))                 \
 	    {                                                           \
         DebugLog(fmt, __VA_ARGS__);                             \

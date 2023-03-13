@@ -252,16 +252,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="crosfingerprint.c" />
+    <ClCompile Include="crosfpsensor.c" />
     <ClCompile Include="cros_ec_spi.c" />
     <ClCompile Include="spb.c" />
     <ClCompile Include="umdf-log.c" />
+    <ClCompile Include="wbdi.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crosfingerprint.h" />
     <ClInclude Include="ec_commands.h" />
-    <ClInclude Include="registers.h" />
     <ClInclude Include="spb.h" />
     <ClInclude Include="stdint.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\fingerprint_adapter\FingerprintAdapter.vcxproj">
+      <Project>{22eed378-7fe9-4946-a653-05bb1ee20717}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

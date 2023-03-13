@@ -1,0 +1,876 @@
+/*++
+ 
+    THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
+    ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+    THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
+    PARTICULAR PURPOSE.
+
+    Copyright (c) Microsoft Corporation. All rights reserved
+
+Module Name:
+
+    EngineAdapter.cpp
+
+Abstract:
+
+    This module contains a stub implementation of an Engine Adapter
+    plug-in for the Windows Biometric service.
+
+Author:
+
+    -
+
+Environment:
+
+    Win32, user mode only.
+
+Revision History:
+
+NOTES:
+
+    (None)
+
+--*/
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Header files...
+//
+///////////////////////////////////////////////////////////////////////////////
+#include "precomp.h"
+#include "winbio_adapter.h"
+#include "EngineAdapter.h"
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Forward declarations for the Engine Adapter's interface routines...
+//
+///////////////////////////////////////////////////////////////////////////////
+static HRESULT
+WINAPI
+EngineAdapterAttach(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterDetach(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterClearContext(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterEndOperation(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterQueryPreferredFormat(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_REGISTERED_FORMAT StandardFormat,
+    _Out_ PWINBIO_UUID VendorFormat
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterQueryIndexVectorSize(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PSIZE_T IndexElementCount
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterQueryHashAlgorithms(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PSIZE_T AlgorithmCount,
+    _Out_ PSIZE_T AlgorithmBufferSize,
+    _Out_ PUCHAR *AlgorithmBuffer
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterSetHashAlgorithm(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ SIZE_T AlgorithmBufferSize,
+    _In_ PUCHAR AlgorithmBuffer
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterQuerySampleHint(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PSIZE_T SampleHint
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterAcceptSampleData(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ PWINBIO_BIR SampleBuffer,
+    _In_ SIZE_T SampleSize,
+    _In_ WINBIO_BIR_PURPOSE Purpose,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterExportEngineData(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ WINBIO_BIR_DATA_FLAGS Flags,
+    _Out_ PWINBIO_BIR *SampleBuffer,
+    _Out_ PSIZE_T SampleSize
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterVerifyFeatureSet(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ PWINBIO_IDENTITY Identity,
+    _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _Out_ PBOOLEAN Match,
+    _Out_ PUCHAR *PayloadBlob,
+    _Out_ PSIZE_T PayloadBlobSize,
+    _Out_ PUCHAR *HashValue,
+    _Out_ PSIZE_T HashSize,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterIdentifyFeatureSet(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_IDENTITY Identity,
+    _Out_ PWINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _Out_ PUCHAR *PayloadBlob,
+    _Out_ PSIZE_T PayloadBlobSize,
+    _Out_ PUCHAR *HashValue,
+    _Out_ PSIZE_T HashSize,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterCreateEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterUpdateEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterGetEnrollmentStatus(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterGetEnrollmentHash(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PUCHAR *HashValue,
+    _Out_ PSIZE_T HashSize
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterCheckForDuplicate(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_IDENTITY Identity,
+    _Out_ PWINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _Out_ PBOOLEAN Duplicate
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterCommitEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ PWINBIO_IDENTITY Identity,
+    _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _In_ PUCHAR PayloadBlob,
+    _In_ SIZE_T PayloadBlobSize
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterDiscardEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterControlUnit(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ ULONG ControlCode,
+    _In_ PUCHAR SendBuffer,
+    _In_ SIZE_T SendBufferSize,
+    _In_ PUCHAR ReceiveBuffer,
+    _In_ SIZE_T ReceiveBufferSize,
+    _Out_ PSIZE_T ReceiveDataSize,
+    _Out_ PULONG OperationStatus
+    );
+
+static HRESULT
+WINAPI
+EngineAdapterControlUnitPrivileged(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ ULONG ControlCode,
+    _In_ PUCHAR SendBuffer,
+    _In_ SIZE_T SendBufferSize,
+    _In_ PUCHAR ReceiveBuffer,
+    _In_ SIZE_T ReceiveBufferSize,
+    _Out_ PSIZE_T ReceiveDataSize,
+    _Out_ PULONG OperationStatus
+    );
+//-----------------------------------------------------------------------------
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Interface dispatch table
+//
+///////////////////////////////////////////////////////////////////////////////
+static WINBIO_ENGINE_INTERFACE g_EngineInterface = {
+    WINBIO_ENGINE_INTERFACE_VERSION_1,
+    WINBIO_ADAPTER_TYPE_ENGINE,
+    sizeof(WINBIO_ENGINE_INTERFACE),
+    {0xb876fdc8, 0x34e7, 0x471a, {0x82, 0xc8, 0x9c, 0xba, 0x6a, 0x35, 0x38, 0xec}},
+
+    EngineAdapterAttach,
+    EngineAdapterDetach,
+    EngineAdapterClearContext,
+    EngineAdapterQueryPreferredFormat,
+    EngineAdapterQueryIndexVectorSize,
+    EngineAdapterQueryHashAlgorithms,
+    EngineAdapterSetHashAlgorithm,
+    EngineAdapterQuerySampleHint,
+    EngineAdapterAcceptSampleData,
+    EngineAdapterExportEngineData,
+    EngineAdapterVerifyFeatureSet,
+    EngineAdapterIdentifyFeatureSet,
+    EngineAdapterCreateEnrollment,
+    EngineAdapterUpdateEnrollment,
+    EngineAdapterGetEnrollmentStatus,
+    EngineAdapterGetEnrollmentHash,
+    EngineAdapterCheckForDuplicate,
+    EngineAdapterCommitEnrollment,
+    EngineAdapterDiscardEnrollment,
+    EngineAdapterControlUnit,
+    EngineAdapterControlUnitPrivileged
+};
+//-----------------------------------------------------------------------------
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Well-known interface-discovery function exported by the Engine Adapter
+//
+///////////////////////////////////////////////////////////////////////////////
+HRESULT
+WINAPI
+WbioQueryEngineInterface(
+    _Out_ PWINBIO_ENGINE_INTERFACE *EngineInterface
+    )
+{
+    *EngineInterface = &g_EngineInterface;
+    return S_OK;
+}
+//-----------------------------------------------------------------------------
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Engine Adapter action routines
+//
+///////////////////////////////////////////////////////////////////////////////
+static HRESULT
+WINAPI
+EngineAdapterAttach(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    )
+{
+    DebugLog("Called EngineAdapterAttach\n");
+
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    PWINIBIO_ENGINE_CONTEXT newContext = (PWINIBIO_ENGINE_CONTEXT)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(WINIBIO_ENGINE_CONTEXT));
+    if (!newContext) {
+        return E_OUTOFMEMORY;
+    }
+
+    Pipeline->EngineContext = newContext;
+
+    DebugLog("Handles: sensor 0x%lx, engine 0x%lx, storage 0x%lx\n", Pipeline->SensorHandle, Pipeline->EngineHandle, Pipeline->StorageHandle);
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterDetach(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    )
+{
+    DebugLog("Called EngineAdapterDetach\n");
+
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (Pipeline->EngineContext) {
+        HeapFree(GetProcessHeap(), HEAP_ZERO_MEMORY, Pipeline->EngineContext);
+        Pipeline->EngineContext = NULL;
+    }
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterClearContext(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+
+    DebugLog("Called EngineAdapterClearContext\n");
+
+    return S_OK;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterQueryPreferredFormat(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_REGISTERED_FORMAT StandardFormat,
+    _Out_ PWINBIO_UUID VendorFormat
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(StandardFormat);
+    UNREFERENCED_PARAMETER(VendorFormat);
+
+    DebugLog("Called EngineAdapterQueryPreferredFormat\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterQueryIndexVectorSize(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PSIZE_T IndexElementCount
+    )
+{
+    DebugLog("Called EngineAdapterQueryIndexVectorSize\n");
+
+    HRESULT hr = S_OK;
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(IndexElementCount))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Specify the number of index vector elements supported by your adapter. This can
+    // be any positive value or zero. Return zero if your adapter does not support placing 
+    // templates into buckets. That is, return zero if your adapter does not support index 
+    // vectors.
+    *IndexElementCount = 5;
+
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterQueryHashAlgorithms(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PSIZE_T AlgorithmCount,
+    _Out_ PSIZE_T AlgorithmBufferSize,
+    _Out_ PUCHAR *AlgorithmBuffer
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(AlgorithmCount);
+    UNREFERENCED_PARAMETER(AlgorithmBufferSize);
+    UNREFERENCED_PARAMETER(AlgorithmBuffer);
+
+    DebugLog("Called EngineAdapterQueryHashAlgorithms\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterSetHashAlgorithm(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ SIZE_T AlgorithmBufferSize,
+    _In_ PUCHAR AlgorithmBuffer
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(AlgorithmBufferSize);
+    UNREFERENCED_PARAMETER(AlgorithmBuffer);
+
+    DebugLog("Called EngineAdapterSetHashAlgorithm\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterQuerySampleHint(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PSIZE_T SampleHint
+    )
+{
+    HRESULT hr = S_OK;
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(SampleHint))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    DebugLog("Called EngineAdapterQuerySampleHint\n");
+
+    *SampleHint = 5;
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterAcceptSampleData(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ PWINBIO_BIR SampleBuffer,
+    _In_ SIZE_T SampleSize,
+    _In_ WINBIO_BIR_PURPOSE Purpose,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    )
+{
+    UNREFERENCED_PARAMETER(SampleSize);
+    UNREFERENCED_PARAMETER(Purpose);
+
+    DebugLog("Called EngineAdapterAcceptSampleData\n");
+
+    HRESULT hr = S_OK;
+    PUCHAR featureSet = NULL;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(SampleBuffer) ||
+        !ARGUMENT_PRESENT(RejectDetail))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Verify that input arguments are valid.
+    if (//SampleSize == 0 ||
+        Purpose == WINBIO_NO_PURPOSE_AVAILABLE)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    *RejectDetail = 0;
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterExportEngineData(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ WINBIO_BIR_DATA_FLAGS Flags,
+    _Out_ PWINBIO_BIR *SampleBuffer,
+    _Out_ PSIZE_T SampleSize
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(Flags);
+    UNREFERENCED_PARAMETER(SampleBuffer);
+    UNREFERENCED_PARAMETER(SampleSize);
+
+    DebugLog("Called EngineAdapterExportEngineData\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterVerifyFeatureSet(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ PWINBIO_IDENTITY Identity,
+    _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _Out_ PBOOLEAN Match,
+    _Out_ PUCHAR *PayloadBlob,
+    _Out_ PSIZE_T PayloadBlobSize,
+    _Out_ PUCHAR *HashValue,
+    _Out_ PSIZE_T HashSize,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(Identity);
+    UNREFERENCED_PARAMETER(SubFactor);
+    UNREFERENCED_PARAMETER(Match);
+    UNREFERENCED_PARAMETER(PayloadBlob);
+    UNREFERENCED_PARAMETER(PayloadBlobSize);
+    UNREFERENCED_PARAMETER(HashValue);
+    UNREFERENCED_PARAMETER(HashSize);
+    UNREFERENCED_PARAMETER(RejectDetail);
+
+    DebugLog("Called EngineAdapterVerifyFeatureSet\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterIdentifyFeatureSet(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_IDENTITY Identity,
+    _Out_ PWINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _Out_ PUCHAR *PayloadBlob,
+    _Out_ PSIZE_T PayloadBlobSize,
+    _Out_ PUCHAR *HashValue,
+    _Out_ PSIZE_T HashSize,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    )
+{
+    DebugLog("Called EngineAdapterIdentifyFeatureSet\n");
+
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(Identity) ||
+        !ARGUMENT_PRESENT(SubFactor) ||
+        !ARGUMENT_PRESENT(PayloadBlob) ||
+        !ARGUMENT_PRESENT(PayloadBlobSize) ||
+        !ARGUMENT_PRESENT(HashValue) ||
+        !ARGUMENT_PRESENT(HashSize) ||
+        !ARGUMENT_PRESENT(RejectDetail))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    *PayloadBlob = NULL;
+    *PayloadBlobSize = 0;
+    *HashValue = NULL;
+    *HashSize = 0;
+    *RejectDetail = 0;
+    hr = WINBIO_E_UNKNOWN_ID;
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterCreateEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    )
+{
+    DebugLog("Called EngineAdapterCreateEnrollment\n");
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Return if an enrollment is already in progress. This example assumes that 
+    // your engine adapter context contains an enrollment object.
+    if (context->Enrollment.InProgress == TRUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    // Initialize any Enrollment data members not initialized by  the 
+    // _AdapterCreateEnrollmentTemplate function. This example assumes that
+    // your enrollment object contains at a minimum a field that specifies 
+    // the number of biometric samples and another that specifies whether a
+    // new enrollment is in progress.
+    context->Enrollment.SampleCount = 0;
+    context->Enrollment.InProgress = TRUE;
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterUpdateEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    )
+{
+    DebugLog("Called EngineAdapterUpdateEnrollment\n");
+
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(RejectDetail))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Return if an enrollment is already in progress. This example assumes that 
+    // your engine adapter context contains an enrollment object.
+    if (context->Enrollment.InProgress == TRUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    *RejectDetail = FALSE;
+
+    context->Enrollment.SampleCount++;
+    if (context->Enrollment.SampleCount == 5) {
+        hr = S_OK;
+    }
+    else {
+        hr = WINBIO_I_MORE_DATA;
+    }
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterGetEnrollmentStatus(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_REJECT_DETAIL RejectDetail
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(RejectDetail);
+
+    DebugLog("Called EngineAdapterGetEnrollmentStatus\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterGetEnrollmentHash(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PUCHAR *HashValue,
+    _Out_ PSIZE_T HashSize
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(HashValue);
+    UNREFERENCED_PARAMETER(HashSize);
+
+    DebugLog("Called EngineAdapterGetEnrollmentHash\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterCheckForDuplicate(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _Out_ PWINBIO_IDENTITY Identity,
+    _Out_ PWINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _Out_ PBOOLEAN Duplicate
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(Identity);
+    UNREFERENCED_PARAMETER(SubFactor);
+    UNREFERENCED_PARAMETER(Duplicate);
+
+    DebugLog("Called EngineAdapterCheckForDuplicate\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterCommitEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ PWINBIO_IDENTITY Identity,
+    _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    _In_ PUCHAR PayloadBlob,
+    _In_ SIZE_T PayloadBlobSize
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(Identity);
+    UNREFERENCED_PARAMETER(SubFactor);
+    UNREFERENCED_PARAMETER(PayloadBlob);
+    UNREFERENCED_PARAMETER(PayloadBlobSize);
+
+    DebugLog("Called EngineAdapterCommitEnrollment\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterDiscardEnrollment(
+    _Inout_ PWINBIO_PIPELINE Pipeline
+    )
+{
+    DebugLog("Called EngineAdapterDiscardEnrollment\n");
+
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Return if an enrollment is not in progress. This example assumes that 
+    // an enrollment object is part of your engine context structure.
+    if (context->Enrollment.InProgress != TRUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    // If the _AdapterDestroyEnrollmentTemplate function does not reset the
+    // InProgress data member, reset it here.
+    context->Enrollment.InProgress = FALSE;
+
+cleanup:
+    return hr;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterControlUnit(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ ULONG ControlCode,
+    _In_ PUCHAR SendBuffer,
+    _In_ SIZE_T SendBufferSize,
+    _In_ PUCHAR ReceiveBuffer,
+    _In_ SIZE_T ReceiveBufferSize,
+    _Out_ PSIZE_T ReceiveDataSize,
+    _Out_ PULONG OperationStatus
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(ControlCode);
+    UNREFERENCED_PARAMETER(SendBuffer);
+    UNREFERENCED_PARAMETER(SendBufferSize);
+    UNREFERENCED_PARAMETER(ReceiveBuffer);
+    UNREFERENCED_PARAMETER(ReceiveBufferSize);
+    UNREFERENCED_PARAMETER(ReceiveDataSize);
+    UNREFERENCED_PARAMETER(OperationStatus);
+
+    DebugLog("Called EngineAdapterControlUnit\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+
+static HRESULT
+WINAPI
+EngineAdapterControlUnitPrivileged(
+    _Inout_ PWINBIO_PIPELINE Pipeline,
+    _In_ ULONG ControlCode,
+    _In_ PUCHAR SendBuffer,
+    _In_ SIZE_T SendBufferSize,
+    _In_ PUCHAR ReceiveBuffer,
+    _In_ SIZE_T ReceiveBufferSize,
+    _Out_ PSIZE_T ReceiveDataSize,
+    _Out_ PULONG OperationStatus
+    )
+{
+    UNREFERENCED_PARAMETER(Pipeline);
+    UNREFERENCED_PARAMETER(ControlCode);
+    UNREFERENCED_PARAMETER(SendBuffer);
+    UNREFERENCED_PARAMETER(SendBufferSize);
+    UNREFERENCED_PARAMETER(ReceiveBuffer);
+    UNREFERENCED_PARAMETER(ReceiveBufferSize);
+    UNREFERENCED_PARAMETER(ReceiveDataSize);
+    UNREFERENCED_PARAMETER(OperationStatus);
+
+    DebugLog("Called EngineAdapterControlUnitPrivileged\n");
+
+    return E_NOTIMPL;
+}
+//-----------------------------------------------------------------------------
+

@@ -307,14 +307,41 @@ enum host_event_code {
 	 /* EC encountered a panic, triggering a reset */
 	 EC_HOST_EVENT_PANIC = 24,
 
+	 /* Keyboard fastboot combo has been pressed */
+	 EC_HOST_EVENT_KEYBOARD_FASTBOOT = 25,
+
+	 /* EC RTC event occurred */
+	 EC_HOST_EVENT_RTC = 26,
+
+	 /* Emulate MKBP event */
+	 EC_HOST_EVENT_MKBP = 27,
+
+	 /* EC desires to change state of host-controlled USB mux */
+	 EC_HOST_EVENT_USB_MUX = 28,
+
 	 /*
-	  * The high bit of the event mask is not used as a host event code.  If
-	  * it reads back as set, then the entire event mask should be
-	  * considered invalid by the host.  This can happen when reading the
-	  * raw event status via EC_MEMMAP_HOST_EVENTS but the LPC interface is
-	  * not initialized on the EC, or improperly configured on the host.
+	  * The device has changed "modes". This can be one of the following:
+	  *
+	  * - TABLET/LAPTOP mode
+	  * - detachable base attach/detach event
+	  * - on body/off body transition event
 	  */
-	  EC_HOST_EVENT_INVALID = 32
+	  EC_HOST_EVENT_MODE_CHANGE = 29,
+
+	  /* Keyboard recovery combo with hardware reinitialization */
+	  EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT = 30,
+
+	  /* WoV */
+	  EC_HOST_EVENT_WOV = 31,
+
+	  /*
+	   * The high bit of the event mask is not used as a host event code.  If
+	   * it reads back as set, then the entire event mask should be
+	   * considered invalid by the host.  This can happen when reading the
+	   * raw event status via EC_MEMMAP_HOST_EVENTS but the LPC interface is
+	   * not initialized on the EC, or improperly configured on the host.
+	   */
+	   EC_HOST_EVENT_INVALID = 32
 };
 /* Host event mask */
 #define EC_HOST_EVENT_MASK(event_code) (1UL << ((event_code) - 1))
@@ -906,6 +933,17 @@ struct ec_response_get_features {
 
 #include <poppack.h>
 
+/*
+ * Reboot NOW
+ *
+ * This command will work even when the EC LPC interface is busy, because the
+ * reboot command is processed at interrupt level.  Note that when the EC
+ * reboots, the host will reboot too, so there is no response to this command.
+ *
+ * Use EC_CMD_REBOOT_EC to reboot the EC more politely.
+ */
+#define EC_CMD_REBOOT 0x00D1 /* Think "die" */
+
 /*****************************************************************************/
 /* Fingerprint MCU commands: range 0x0400-0x040x */
 
@@ -1202,5 +1240,626 @@ struct ec_response_fp_read_match_secret {
 };
 
 #include <poppack.h>
+
+/*****************************************************************************/
+/* MKBP - Matrix KeyBoard Protocol */
+
+/*
+ * Read key state
+ *
+ * Returns raw data for keyboard cols; see ec_response_mkbp_info.cols for
+ * expected response size.
+ *
+ * NOTE: This has been superseded by EC_CMD_MKBP_GET_NEXT_EVENT.  If you wish
+ * to obtain the instantaneous state, use EC_CMD_MKBP_INFO with the type
+ * EC_MKBP_INFO_CURRENT and event EC_MKBP_EVENT_KEY_MATRIX.
+ */
+#define EC_CMD_MKBP_STATE 0x0060
+
+ /*
+  * Provide information about various MKBP things.  See enum ec_mkbp_info_type.
+  */
+#define EC_CMD_MKBP_INFO 0x0061
+
+#include <pshpack1.h>
+
+struct ec_response_mkbp_info {
+	UINT32 rows;
+	UINT32 cols;
+	/* Formerly "switches", which was 0. */
+	UINT8 reserved;
+};
+
+struct ec_params_mkbp_info {
+	UINT8 info_type;
+	UINT8 event_type;
+};
+
+#include <poppack.h>
+
+enum ec_mkbp_info_type {
+	/*
+	 * Info about the keyboard matrix: number of rows and columns.
+	 *
+	 * Returns struct ec_response_mkbp_info.
+	 */
+	EC_MKBP_INFO_KBD = 0,
+
+	/*
+	 * For buttons and switches, info about which specifically are
+	 * supported.  event_type must be set to one of the values in enum
+	 * ec_mkbp_event.
+	 *
+	 * For EC_MKBP_EVENT_BUTTON and EC_MKBP_EVENT_SWITCH, returns a 4 byte
+	 * bitmask indicating which buttons or switches are present.  See the
+	 * bit inidices below.
+	 */
+	 EC_MKBP_INFO_SUPPORTED = 1,
+
+	 /*
+	  * Instantaneous state of buttons and switches.
+	  *
+	  * event_type must be set to one of the values in enum ec_mkbp_event.
+	  *
+	  * For EC_MKBP_EVENT_KEY_MATRIX, returns uint8_t key_matrix[13]
+	  * indicating the current state of the keyboard matrix.
+	  *
+	  * For EC_MKBP_EVENT_HOST_EVENT, return uint32_t host_event, the raw
+	  * event state.
+	  *
+	  * For EC_MKBP_EVENT_BUTTON, returns uint32_t buttons, indicating the
+	  * state of supported buttons.
+	  *
+	  * For EC_MKBP_EVENT_SWITCH, returns uint32_t switches, indicating the
+	  * state of supported switches.
+	  */
+	  EC_MKBP_INFO_CURRENT = 2,
+};
+
+/* Simulate key press */
+#define EC_CMD_MKBP_SIMULATE_KEY 0x0062
+
+#include <pshpack1.h>
+struct ec_params_mkbp_simulate_key {
+	UINT8 col;
+	UINT8 row;
+	UINT8 pressed;
+};
+#include <poppack.h>
+
+#define EC_CMD_GET_KEYBOARD_ID 0x0063
+
+#include <pshpack4.h>
+struct ec_response_keyboard_id {
+	UINT32 keyboard_id;
+};
+#include <poppack.h>
+
+enum keyboard_id {
+	KEYBOARD_ID_UNSUPPORTED = 0,
+	KEYBOARD_ID_UNREADABLE = 0xffffffff,
+};
+
+/* Configure keyboard scanning */
+#define EC_CMD_MKBP_SET_CONFIG 0x0064
+#define EC_CMD_MKBP_GET_CONFIG 0x0065
+
+/* flags */
+enum mkbp_config_flags {
+	EC_MKBP_FLAGS_ENABLE = 1, /* Enable keyboard scanning */
+};
+
+enum mkbp_config_valid {
+	EC_MKBP_VALID_SCAN_PERIOD = BIT(0),
+	EC_MKBP_VALID_POLL_TIMEOUT = BIT(1),
+	EC_MKBP_VALID_MIN_POST_SCAN_DELAY = BIT(3),
+	EC_MKBP_VALID_OUTPUT_SETTLE = BIT(4),
+	EC_MKBP_VALID_DEBOUNCE_DOWN = BIT(5),
+	EC_MKBP_VALID_DEBOUNCE_UP = BIT(6),
+	EC_MKBP_VALID_FIFO_MAX_DEPTH = BIT(7),
+};
+
+#include <pshpack1.h>
+/*
+ * Configuration for our key scanning algorithm.
+ *
+ * Note that this is used as a sub-structure of
+ * ec_{params/response}_mkbp_get_config.
+ */
+struct ec_mkbp_config {
+	UINT32 valid_mask; /* valid fields */
+	UINT8 flags; /* some flags (enum mkbp_config_flags) */
+	UINT8 valid_flags; /* which flags are valid */
+	UINT16 scan_period_us; /* period between start of scans */
+	/* revert to interrupt mode after no activity for this long */
+	UINT32 poll_timeout_us;
+	/*
+	 * minimum post-scan relax time. Once we finish a scan we check
+	 * the time until we are due to start the next one. If this time is
+	 * shorter this field, we use this instead.
+	 */
+	UINT16 min_post_scan_delay_us;
+	/* delay between setting up output and waiting for it to settle */
+	UINT16 output_settle_us;
+	UINT16 debounce_down_us; /* time for debounce on key down */
+	UINT16 debounce_up_us; /* time for debounce on key up */
+	/* maximum depth to allow for fifo (0 = no keyscan output) */
+	UINT8 fifo_max_depth;
+};
+
+struct ec_params_mkbp_set_config {
+	struct ec_mkbp_config config;
+};
+
+struct ec_response_mkbp_get_config {
+	struct ec_mkbp_config config;
+};
+#include <poppack.h>
+
+/* Run the key scan emulation */
+#define EC_CMD_KEYSCAN_SEQ_CTRL 0x0066
+
+enum ec_keyscan_seq_cmd {
+	EC_KEYSCAN_SEQ_STATUS = 0, /* Get status information */
+	EC_KEYSCAN_SEQ_CLEAR = 1, /* Clear sequence */
+	EC_KEYSCAN_SEQ_ADD = 2, /* Add item to sequence */
+	EC_KEYSCAN_SEQ_START = 3, /* Start running sequence */
+	EC_KEYSCAN_SEQ_COLLECT = 4, /* Collect sequence summary data */
+};
+
+enum ec_collect_flags {
+	/*
+	 * Indicates this scan was processed by the EC. Due to timing, some
+	 * scans may be skipped.
+	 */
+	EC_KEYSCAN_SEQ_FLAG_DONE = BIT(0),
+};
+
+#include <pshpack1.h>
+struct ec_collect_item {
+	UINT8 flags; /* some flags (enum ec_collect_flags) */
+};
+
+struct ec_params_keyscan_seq_ctrl {
+	UINT8 cmd; /* Command to send (enum ec_keyscan_seq_cmd) */
+	union {
+		struct {
+			UINT8 active; /* still active */
+			UINT8 num_items; /* number of items */
+			/* Current item being presented */
+			UINT8 cur_item;
+		} status;
+		struct {
+			/*
+			 * Absolute time for this scan, measured from the
+			 * start of the sequence.
+			 */
+			UINT32 time_us;
+			UINT8 scan[0]; /* keyscan data */
+		} add;
+		struct {
+			UINT8 start_item; /* First item to return */
+			UINT8 num_items; /* Number of items to return */
+		} collect;
+	};
+};
+
+struct ec_result_keyscan_seq_ctrl {
+	union {
+		struct {
+			UINT8 num_items; /* Number of items */
+			/* Data for each item */
+			struct ec_collect_item item[0];
+		} collect;
+	};
+};
+#include <poppack.h>
+
+/*
+ * Get the next pending MKBP event.
+ *
+ * Returns EC_RES_UNAVAILABLE if there is no event pending.
+ */
+#define EC_CMD_GET_NEXT_EVENT 0x0067
+
+#define EC_MKBP_HAS_MORE_EVENTS_SHIFT 7
+
+ /*
+  * We use the most significant bit of the event type to indicate to the host
+  * that the EC has more MKBP events available to provide.
+  */
+#define EC_MKBP_HAS_MORE_EVENTS BIT(EC_MKBP_HAS_MORE_EVENTS_SHIFT)
+
+  /* The mask to apply to get the raw event type */
+#define EC_MKBP_EVENT_TYPE_MASK (BIT(EC_MKBP_HAS_MORE_EVENTS_SHIFT) - 1)
+
+enum ec_mkbp_event {
+	/* Keyboard matrix changed. The event data is the new matrix state. */
+	EC_MKBP_EVENT_KEY_MATRIX = 0,
+
+	/* New host event. The event data is 4 bytes of host event flags. */
+	EC_MKBP_EVENT_HOST_EVENT = 1,
+
+	/* New Sensor FIFO data. The event data is fifo_info structure. */
+	EC_MKBP_EVENT_SENSOR_FIFO = 2,
+
+	/* The state of the non-matrixed buttons have changed. */
+	EC_MKBP_EVENT_BUTTON = 3,
+
+	/* The state of the switches have changed. */
+	EC_MKBP_EVENT_SWITCH = 4,
+
+	/* New Fingerprint sensor event, the event data is fp_events bitmap. */
+	EC_MKBP_EVENT_FINGERPRINT = 5,
+
+	/*
+	 * Sysrq event: send emulated sysrq. The event data is sysrq,
+	 * corresponding to the key to be pressed.
+	 */
+	 EC_MKBP_EVENT_SYSRQ = 6,
+
+	 /*
+	  * New 64-bit host event.
+	  * The event data is 8 bytes of host event flags.
+	  */
+	  EC_MKBP_EVENT_HOST_EVENT64 = 7,
+
+	  /* Notify the AP that something happened on CEC */
+	  EC_MKBP_EVENT_CEC_EVENT = 8,
+
+	  /* Send an incoming CEC message to the AP */
+	  EC_MKBP_EVENT_CEC_MESSAGE = 9,
+
+	  /* We have entered DisplayPort Alternate Mode on a Type-C port. */
+	  EC_MKBP_EVENT_DP_ALT_MODE_ENTERED = 10,
+
+	  /* New online calibration values are available. */
+	  EC_MKBP_EVENT_ONLINE_CALIBRATION = 11,
+
+	  /* Peripheral device charger event */
+	  EC_MKBP_EVENT_PCHG = 12,
+
+	  /* Number of MKBP events */
+	  EC_MKBP_EVENT_COUNT,
+};
+
+/* clang-format off */
+#define EC_MKBP_EVENT_TEXT                                                     \
+	{                                                                      \
+		[EC_MKBP_EVENT_KEY_MATRIX] = "KEY_MATRIX",                     \
+		[EC_MKBP_EVENT_HOST_EVENT] = "HOST_EVENT",                     \
+		[EC_MKBP_EVENT_SENSOR_FIFO] = "SENSOR_FIFO",                   \
+		[EC_MKBP_EVENT_BUTTON] = "BUTTON",                             \
+		[EC_MKBP_EVENT_SWITCH] = "SWITCH",                             \
+		[EC_MKBP_EVENT_FINGERPRINT] = "FINGERPRINT",                   \
+		[EC_MKBP_EVENT_SYSRQ] = "SYSRQ",                               \
+		[EC_MKBP_EVENT_HOST_EVENT64] = "HOST_EVENT64",                 \
+		[EC_MKBP_EVENT_CEC_EVENT] = "CEC_EVENT",                       \
+		[EC_MKBP_EVENT_CEC_MESSAGE] = "CEC_MESSAGE",                   \
+		[EC_MKBP_EVENT_DP_ALT_MODE_ENTERED] = "DP_ALT_MODE_ENTERED",   \
+		[EC_MKBP_EVENT_ONLINE_CALIBRATION] = "ONLINE_CALIBRATION",     \
+		[EC_MKBP_EVENT_PCHG] = "PCHG",                                 \
+	}
+/* clang-format on */
+
+#include <pshpack1.h>
+/* Note: used in ec_response_get_next_data */
+struct ec_response_motion_sense_fifo_info {
+	/* Size of the fifo */
+	UINT16 size;
+	/* Amount of space used in the fifo */
+	UINT16 count;
+	/* Timestamp recorded in us.
+	 * aka accurate timestamp when host event was triggered.
+	 */
+	UINT32 timestamp;
+	/* Total amount of vector lost */
+	UINT16 total_lost;
+	/* Lost events since the last fifo_info, per sensors */
+	UINT16 lost[0];
+};
+#include <poppack.h>
+
+#include <pshpack1.h>
+union ec_response_get_next_data {
+	UINT8 key_matrix[13];
+
+	/* Unaligned */
+	UINT32 host_event;
+	UINT64 host_event64;
+
+	struct {
+		/* For aligning the fifo_info */
+		UINT8 reserved[3];
+		struct ec_response_motion_sense_fifo_info info;
+	} sensor_fifo;
+
+	UINT32 buttons;
+
+	UINT32 switches;
+
+	UINT32 fp_events;
+
+	UINT32 sysrq;
+
+	/* CEC events from enum mkbp_cec_event */
+	UINT32 cec_events;
+};
+
+union ec_response_get_next_data_v1 {
+	UINT8 key_matrix[16];
+
+	/* Unaligned */
+	UINT32 host_event;
+	UINT64 host_event64;
+
+	struct {
+		/* For aligning the fifo_info */
+		UINT8 reserved[3];
+		struct ec_response_motion_sense_fifo_info info;
+	} sensor_fifo;
+
+	UINT32 buttons;
+
+	UINT32 switches;
+
+	UINT32 fp_events;
+
+	UINT32 sysrq;
+
+	/* CEC events from enum mkbp_cec_event */
+	UINT32 cec_events;
+
+	UINT8 cec_message[16];
+};
+
+struct ec_response_get_next_event {
+	UINT8 event_type;
+	/* Followed by event data if any */
+	union ec_response_get_next_data data;
+};
+
+struct ec_response_get_next_event_v1 {
+	UINT8 event_type;
+	/* Followed by event data if any */
+	union ec_response_get_next_data_v1 data;
+};
+#include <poppack.h>
+
+/* Bit indices for buttons and switches.*/
+/* Buttons */
+#define EC_MKBP_POWER_BUTTON 0
+#define EC_MKBP_VOL_UP 1
+#define EC_MKBP_VOL_DOWN 2
+#define EC_MKBP_RECOVERY 3
+
+/* Switches */
+#define EC_MKBP_LID_OPEN 0
+#define EC_MKBP_TABLET_MODE 1
+#define EC_MKBP_BASE_ATTACHED 2
+#define EC_MKBP_FRONT_PROXIMITY 3
+
+/* Run keyboard factory test scanning */
+#define EC_CMD_KEYBOARD_FACTORY_TEST 0x0068
+
+#include <pshpack2.h>
+
+struct ec_response_keyboard_factory_test {
+	UINT16 shorted; /* Keyboard pins are shorted */
+};
+
+/* Fingerprint events in 'fp_events' for EC_MKBP_EVENT_FINGERPRINT */
+#define EC_MKBP_FP_RAW_EVENT(fp_events) ((fp_events)&0x00FFFFFF)
+#define EC_MKBP_FP_ERRCODE(fp_events) ((fp_events)&0x0000000F)
+#define EC_MKBP_FP_ENROLL_PROGRESS_OFFSET 4
+#define EC_MKBP_FP_ENROLL_PROGRESS(fpe) \
+	(((fpe)&0x00000FF0) >> EC_MKBP_FP_ENROLL_PROGRESS_OFFSET)
+#define EC_MKBP_FP_MATCH_IDX_OFFSET 12
+#define EC_MKBP_FP_MATCH_IDX_MASK 0x0000F000
+#define EC_MKBP_FP_MATCH_IDX(fpe) \
+	(((fpe)&EC_MKBP_FP_MATCH_IDX_MASK) >> EC_MKBP_FP_MATCH_IDX_OFFSET)
+#define EC_MKBP_FP_ENROLL BIT(27)
+#define EC_MKBP_FP_MATCH BIT(28)
+#define EC_MKBP_FP_FINGER_DOWN BIT(29)
+#define EC_MKBP_FP_FINGER_UP BIT(30)
+#define EC_MKBP_FP_IMAGE_READY BIT(31)
+/* code given by EC_MKBP_FP_ERRCODE() when EC_MKBP_FP_ENROLL is set */
+#define EC_MKBP_FP_ERR_ENROLL_OK 0
+#define EC_MKBP_FP_ERR_ENROLL_LOW_QUALITY 1
+#define EC_MKBP_FP_ERR_ENROLL_IMMOBILE 2
+#define EC_MKBP_FP_ERR_ENROLL_LOW_COVERAGE 3
+#define EC_MKBP_FP_ERR_ENROLL_INTERNAL 5
+/* Can be used to detect if image was usable for enrollment or not. */
+#define EC_MKBP_FP_ERR_ENROLL_PROBLEM_MASK 1
+/* code given by EC_MKBP_FP_ERRCODE() when EC_MKBP_FP_MATCH is set */
+#define EC_MKBP_FP_ERR_MATCH_NO 0
+#define EC_MKBP_FP_ERR_MATCH_NO_INTERNAL 6
+#define EC_MKBP_FP_ERR_MATCH_NO_TEMPLATES 7
+#define EC_MKBP_FP_ERR_MATCH_NO_LOW_QUALITY 2
+#define EC_MKBP_FP_ERR_MATCH_NO_LOW_COVERAGE 4
+#define EC_MKBP_FP_ERR_MATCH_YES 1
+#define EC_MKBP_FP_ERR_MATCH_YES_UPDATED 3
+#define EC_MKBP_FP_ERR_MATCH_YES_UPDATE_FAILED 5
+
+#include <poppack.h>
+
+#define EC_CMD_MKBP_WAKE_MASK 0x0069
+enum ec_mkbp_event_mask_action {
+	/* Retrieve the value of a wake mask. */
+	GET_WAKE_MASK = 0,
+
+	/* Set the value of a wake mask. */
+	SET_WAKE_MASK,
+};
+
+enum ec_mkbp_mask_type {
+	/*
+	 * These are host events sent via MKBP.
+	 *
+	 * Some examples are:
+	 *    EC_HOST_EVENT_MASK(EC_HOST_EVENT_LID_OPEN)
+	 *    EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEY_PRESSED)
+	 *
+	 * The only things that should be in this mask are:
+	 *    EC_HOST_EVENT_MASK(EC_HOST_EVENT_*)
+	 */
+	EC_MKBP_HOST_EVENT_WAKE_MASK = 0,
+
+	/*
+	 * These are MKBP events. Some examples are:
+	 *
+	 *    EC_MKBP_EVENT_KEY_MATRIX
+	 *    EC_MKBP_EVENT_SWITCH
+	 *
+	 * The only things that should be in this mask are EC_MKBP_EVENT_*.
+	 */
+	 EC_MKBP_EVENT_WAKE_MASK,
+};
+
+struct ec_params_mkbp_event_wake_mask {
+	/* One of enum ec_mkbp_event_mask_action */
+	UINT8 action;
+
+	/*
+	 * Which MKBP mask are you interested in acting upon?  This is one of
+	 * ec_mkbp_mask_type.
+	 */
+	UINT8 mask_type;
+
+	/* If setting a new wake mask, this contains the mask to set. */
+	UINT32 new_wake_mask;
+};
+
+struct ec_response_mkbp_event_wake_mask {
+	UINT32 wake_mask;
+};
+
+/*****************************************************************************/
+
+/*
+ * Note: host commands 0x80 - 0x87 are reserved to avoid conflict with ACPI
+ * commands accidentally sent to the wrong interface.  See the ACPI section
+ * below.
+ */
+
+ /*****************************************************************************/
+ /* Host event commands */
+
+ /* Obsolete. New implementation should use EC_CMD_HOST_EVENT instead */
+ /*
+  * Host event mask params and response structures, shared by all of the host
+  * event commands below.
+  */
+
+#include <pshpack4.h>
+
+struct ec_params_host_event_mask {
+	UINT32 mask;
+};
+
+struct ec_response_host_event_mask {
+	UINT32 mask;
+};
+
+#include <poppack.h>
+
+/* These all use ec_response_host_event_mask */
+#define EC_CMD_HOST_EVENT_GET_B 0x0087
+#define EC_CMD_HOST_EVENT_GET_SMI_MASK 0x0088
+#define EC_CMD_HOST_EVENT_GET_SCI_MASK 0x0089
+#define EC_CMD_HOST_EVENT_GET_WAKE_MASK 0x008D
+
+/* These all use ec_params_host_event_mask */
+#define EC_CMD_HOST_EVENT_SET_SMI_MASK 0x008A
+#define EC_CMD_HOST_EVENT_SET_SCI_MASK 0x008B
+#define EC_CMD_HOST_EVENT_CLEAR 0x008C
+#define EC_CMD_HOST_EVENT_SET_WAKE_MASK 0x008E
+#define EC_CMD_HOST_EVENT_CLEAR_B 0x008F
+
+/*
+ * Unified host event programming interface - Should be used by newer versions
+ * of BIOS/OS to program host events and masks
+ *
+ * EC returns:
+ * - EC_RES_INVALID_PARAM: Action or mask type is unknown.
+ * - EC_RES_ACCESS_DENIED: Action is prohibited for specified mask type.
+ */
+
+#include <pshpack4.h>
+
+struct ec_params_host_event {
+	/* Action requested by host - one of enum ec_host_event_action. */
+	UINT8 action;
+
+	/*
+	 * Mask type that the host requested the action on - one of
+	 * enum ec_host_event_mask_type.
+	 */
+	UINT8 mask_type;
+
+	/* Set to 0, ignore on read */
+	UINT16 reserved;
+
+	/* Value to be used in case of set operations. */
+	UINT64 value;
+};
+
+/*
+ * Response structure returned by EC_CMD_HOST_EVENT.
+ * Update the value on a GET request. Set to 0 on GET/CLEAR
+ */
+
+struct ec_response_host_event {
+	/* Mask value in case of get operation */
+	UINT64 value;
+};
+
+#include <poppack.h>
+
+enum ec_host_event_action {
+	/*
+	 * params.value is ignored. Value of mask_type populated
+	 * in response.value
+	 */
+	EC_HOST_EVENT_GET,
+
+	/* Bits in params.value are set */
+	EC_HOST_EVENT_SET,
+
+	/* Bits in params.value are cleared */
+	EC_HOST_EVENT_CLEAR,
+};
+
+enum ec_host_event_mask_type {
+
+	/* Main host event copy */
+	EC_HOST_EVENT_MAIN,
+
+	/* Copy B of host events */
+	EC_HOST_EVENT_B,
+
+	/* SCI Mask */
+	EC_HOST_EVENT_SCI_MASK,
+
+	/* SMI Mask */
+	EC_HOST_EVENT_SMI_MASK,
+
+	/* Mask of events that should be always reported in hostevents */
+	EC_HOST_EVENT_ALWAYS_REPORT_MASK,
+
+	/* Active wake mask */
+	EC_HOST_EVENT_ACTIVE_WAKE_MASK,
+
+	/* Lazy wake mask for S0ix */
+	EC_HOST_EVENT_LAZY_WAKE_MASK_S0IX,
+
+	/* Lazy wake mask for S3 */
+	EC_HOST_EVENT_LAZY_WAKE_MASK_S3,
+
+	/* Lazy wake mask for S5 */
+	EC_HOST_EVENT_LAZY_WAKE_MASK_S5,
+};
+
+#define EC_CMD_HOST_EVENT 0x00A4
 
 #endif  /* __CROS_EC_COMMANDS_H */

@@ -30,6 +30,7 @@ PnpLockdown=1
 
 [SourceDisksFiles]
 crosfingerprint.dll=1
+FingerprintAdapter.dll=1 ; Vendor engine adapter
 
 [SourceDisksNames]
 1 = %DiskName%
@@ -37,9 +38,11 @@ crosfingerprint.dll=1
 ; =================== UMDF Device ==================================
 
 [CrosFp_Device.NT]
-CopyFiles=UMDriverCopy
+CopyFiles=UMDriverCopy, WinBioAdapterCopy
 
 [CrosFp_Device.NT.hw]
+AddReg=CrosFP_Device_AddReg
+AddReg=DriverPlugInAddReg, DatabaseAddReg
 
 [CrosFp_Device.NT.Services]
 AddService=WUDFRd,0x000001fa,WUDFRD_ServiceInstall
@@ -48,11 +51,12 @@ AddService=WUDFRd,0x000001fa,WUDFRD_ServiceInstall
 AddReg=CoInstallers_AddReg
 
 [CrosFp_Device.NT.Wdf]
-UmdfService=crosfingerprint,crosfingerprint_Install
+UmdfService=crosfingerprint, crosfingerprint_Install
 UmdfServiceOrder=crosfingerprint
+UmdfHostProcessSharing=ProcessSharingDisabled
 
 [crosfingerprint_Install]
-UmdfLibraryVersion=$UMDFVERSION$ 
+UmdfLibraryVersion=$UMDFVERSION$
 ServiceBinary=%12%\UMDF\crosfingerprint.dll
 
 ; -------------- crosfingerprint driver install sections
@@ -63,14 +67,54 @@ StartType = 3
 ErrorControl = 1
 ServiceBinary = %12%\WUDFRd.sys
 
+[CrosFP_Device_AddReg]
+HKR,,"DeviceCharacteristics",0x10001,0x0100     ; Use same security checks on relative opens
+HKR,,"Security",,"D:P(A;;GA;;;BA)(A;;GA;;;SY)"  ; Allow generic-all access to Built-in administrators and Local system
+HKR,,"Exclusive",0x10001,1
+HKR,,"SystemWakeEnabled",0x00010001,1
+HKR,,"DeviceIdleEnabled",0x00010001,1
+HKR,,"UserSetDeviceIdleEnabled",0x00010001,1
+HKR,,"DefaultIdleState",0x00010001,1
+HKR,,"DefaultIdleTimeout",0x00010001,5000
+
+[DriverPlugInAddReg]
+HKR,WinBio\Configurations,DefaultConfiguration,,"0"
+HKR,WinBio\Configurations\0,SensorMode,0x10001,2                                ; Basic - 1, Advanced - 2
+HKR,WinBio\Configurations\0,SystemSensor,0x10001,1                              ; UAC/Winlogon - 1
+HKR,WinBio\Configurations\0,SensorAdapterBinary,,"FingerprintAdapter.DLL"		; Vendor Engine
+HKR,WinBio\Configurations\0,EngineAdapterBinary,,"FingerprintAdapter.DLL"       ; Vendor engine
+HKR,WinBio\Configurations\0,StorageAdapterBinary,,"FingerprintAdapter.DLL"    ; Windows built-in storage adapter - see StorageAdapter.dll for sample vendor adapter
+HKR,WinBio\Configurations\0,DatabaseId,,"6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50"  ; Unique database GUID
+
+[DatabaseAddReg]
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},BiometricType,0x00010001,0x00000008
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},Attributes,0x00010001,0x00000001
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},Format,,"00000000-0000-0000-0000-000000000000"
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},InitialSize,0x00010001,0x00000020
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},AutoCreate,0x00010001,0x00000001
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},AutoName,0x00010001,0x00000001
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},FilePath,,""
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},ConnectionString,,""
+
 [CoInstallers_AddReg]
 HKR,,CoInstallers32,0x00010000,"WUDFCoinstaller.dll"
 
 [DestinationDirs]
 UMDriverCopy=12,UMDF ; copy to drivers\umdf
+WinBioAdapterCopy=11,WinBioPlugins ; copy to \Windows\System32\WinBioPlugins
 
 [UMDriverCopy]
 crosfingerprint.dll
+
+[WinBioAdapterCopy]
+FingerprintAdapter.dll
+
+[SignatureAttributes]
+crosfingerprint.dll = SignatureAttributes.WindowsHello
+FingerprintAdapter.dll = SignatureAttributes.WindowsHello
+
+[SignatureAttributes.WindowsHello]
+WindowsHello = true
 
 ; =================== Generic ==================================
 

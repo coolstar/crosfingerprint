@@ -1,10 +1,9 @@
 #include "crosfingerprint.h"
-#include "registers.h"
 #include "ec_commands.h"
 
 #define bool int
 
-static ULONG CrosFPDebugLevel = 100;
+static ULONG CrosFPDebugLevel = 0;
 static ULONG CrosFPDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
 
 NTSTATUS
@@ -52,7 +51,55 @@ BOOLEAN OnInterruptIsr(
 	WDFDEVICE Device = WdfInterruptGetDevice(Interrupt);
 	PCROSFP_CONTEXT pDevice = GetDeviceContext(Device);
 
-	return true;
+	struct ec_response_host_event_mask r;
+
+	BOOLEAN ret = true;
+	NTSTATUS status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_GET_B, 0, NULL, 0, (UINT8*)&r, sizeof(r));
+
+	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+		"Got event!\n");
+
+	struct ec_params_host_event_mask p;
+	p.mask = r.mask;
+
+	status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_CLEAR_B, 0, (UINT8*)&p, sizeof(p), NULL, 0);
+	if (!NT_SUCCESS(status)) {
+		goto out;
+	}
+
+	struct ec_response_get_next_event event = { 0 };
+	status = cros_ec_command(pDevice, EC_CMD_GET_NEXT_EVENT, 0, NULL, 0, (UINT8*)&event, sizeof(event));
+	if (!NT_SUCCESS(status)) {
+		goto out;
+	}
+
+	if (event.event_type == EC_MKBP_EVENT_FINGERPRINT) {
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+			"Fingerprint MKBP! 0x%x\n", event.data.fp_events);
+
+		CompleteFPRequest(pDevice, event.data.fp_events);
+	}
+	else if (event.event_type == EC_MKBP_EVENT_HOST_EVENT) {
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+			"Host Event MKBP %d!\n", event.data.host_event);
+
+		if (event.data.host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_INTERFACE_READY)) {
+			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+				"Host Event Ready!\n");
+			pDevice->DeviceReady = TRUE;
+		}
+	}
+	else {
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+			"Type %d MKBP!\n", event.event_type);
+	}
+
+	status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_GET_B, 0, NULL, 0, (UINT8*)&r, sizeof(r));
+	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+		"Interrupt mask (end) 0x%x!\n", r.mask);
+
+out:
+	return ret;
 }
 
 NTSTATUS
@@ -235,6 +282,8 @@ Status
 	PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
 	NTSTATUS status = STATUS_SUCCESS;
 
+	pDevice->DeviceCalibrated = FALSE;
+
 	struct ec_response_get_version r;
 	status = cros_ec_command(pDevice, EC_CMD_GET_VERSION, 0, NULL, 0, &r, sizeof(struct ec_response_get_version));
 	if (NT_SUCCESS(status)) {
@@ -247,6 +296,13 @@ Status
 	}
 	else {
 		DebugLog("EC Command failed with status %x\n", status);
+	}
+
+	pDevice->DeviceReady = FALSE;
+	NTSTATUS status2 = cros_ec_command(pDevice, EC_CMD_REBOOT, 0, NULL, 0, NULL, 0);
+	if (!NT_SUCCESS(status2)) {
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
+			"Warning: Reboot failed 0x%x\n", status2);
 	}
 
 	return status;
@@ -293,7 +349,6 @@ CrosFPEvtDeviceAdd(
 	WDF_OBJECT_ATTRIBUTES         attributes;
 	WDFDEVICE                     device;
 	WDF_INTERRUPT_CONFIG		  interruptConfig;
-	WDFQUEUE                      queue;
 	PCROSFP_CONTEXT               devContext;
 
 	UNREFERENCED_PARAMETER(Driver);
@@ -345,24 +400,6 @@ CrosFPEvtDeviceAdd(
 		WdfDeviceSetDeviceState(device, &deviceState);
 	}
 
-	WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(&queueConfig, WdfIoQueueDispatchParallel);
-
-	queueConfig.EvtIoInternalDeviceControl = CrosFPEvtInternalDeviceControl;
-
-	status = WdfIoQueueCreate(device,
-		&queueConfig,
-		WDF_NO_OBJECT_ATTRIBUTES,
-		&queue
-	);
-
-	if (!NT_SUCCESS(status))
-	{
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
-			"WdfIoQueueCreate failed 0x%x\n", status);
-
-		return status;
-	}
-
 	//
 	// Create manual I/O queue to take care of hid report read requests
 	//
@@ -370,15 +407,16 @@ CrosFPEvtDeviceAdd(
 	devContext = GetDeviceContext(device);
 
 	devContext->FxDevice = device;
+	devContext->CurrentCapture = NULL;
 
-	WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchManual);
+	WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchParallel);
 
-	queueConfig.PowerManaged = WdfFalse;
+	queueConfig.EvtIoDeviceControl = CrosFPEvtIoDeviceControl;
 
 	status = WdfIoQueueCreate(device,
 		&queueConfig,
 		WDF_NO_OBJECT_ATTRIBUTES,
-		&devContext->ReportQueue
+		&devContext->Queue
 	);
 
 	if (!NT_SUCCESS(status))
@@ -389,11 +427,36 @@ CrosFPEvtDeviceAdd(
 		return status;
 	}
 
+	status = WdfDeviceConfigureRequestDispatching(device, devContext->Queue, WdfRequestTypeDeviceControl);
+	if (!NT_SUCCESS(status))
+	{
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"WdfDeviceConfigureRequestDispatching failed 0x%x\n", status);
+
+		return status;
+	}
+
+	//Create WBDI Interface
+
+	status = WdfDeviceCreateDeviceInterface(device, &GUID_DEVINTERFACE_BIOMETRIC_READER, NULL);
+	if (!NT_SUCCESS(status))
+	{
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"WdfDeviceCreateDeviceInterface failed 0x%x\n", status);
+
+		return status;
+	}
+
+	WdfDeviceSetDeviceInterfaceState(device, &GUID_DEVINTERFACE_BIOMETRIC_READER, NULL, TRUE);
+
+	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+		"CrosFPEvtDeviceAdd succeeded 0x%x\n", status);
+
 	return status;
 }
 
 VOID
-CrosFPEvtInternalDeviceControl(
+CrosFPEvtIoDeviceControl(
 	IN WDFQUEUE     Queue,
 	IN WDFREQUEST   Request,
 	IN size_t       OutputBufferLength,
@@ -404,6 +467,7 @@ CrosFPEvtInternalDeviceControl(
 	NTSTATUS            status = STATUS_SUCCESS;
 	WDFDEVICE           device;
 	PCROSFP_CONTEXT     devContext;
+	BOOLEAN				completeRequest = TRUE;
 
 	UNREFERENCED_PARAMETER(OutputBufferLength);
 	UNREFERENCED_PARAMETER(InputBufferLength);
@@ -411,14 +475,66 @@ CrosFPEvtInternalDeviceControl(
 	device = WdfIoQueueGetDevice(Queue);
 	devContext = GetDeviceContext(device);
 
+	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+		"CrosFPEvtIoDeviceControl start\n");
+
 	switch (IoControlCode)
 	{
+	case IOCTL_BIOMETRIC_GET_ATTRIBUTES:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested get fp attributes\n");
+		status = GetFingerprintAttributes(Request);
+		break;
+	case IOCTL_BIOMETRIC_RESET:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested fp reset\n");
+		status = STATUS_NOT_SUPPORTED;
+		break;
+	case IOCTL_BIOMETRIC_CALIBRATE:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested fp calibrate\n");
+		status = CalibrateSensor(devContext, Request);
+		break;
+	case IOCTL_BIOMETRIC_GET_SENSOR_STATUS:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested get fp sensor status\n");
+		status = GetSensorStatus(devContext, Request);
+		break;
+	case IOCTL_BIOMETRIC_CAPTURE_DATA:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested capture fp data\n");
+		status = CaptureFpData(devContext, Request, &completeRequest);
+		break;
+	case IOCTL_BIOMETRIC_UPDATE_FIRMWARE:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested update fp firmware\n");
+		status = STATUS_NOT_SUPPORTED;
+		break;
+	case IOCTL_BIOMETRIC_GET_SUPPORTED_ALGORITHMS:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested get fp algorithms\n");
+		status = STATUS_NOT_SUPPORTED;
+		break;
+	case IOCTL_BIOMETRIC_GET_INDICATOR:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested get fp indicator\n");
+		status = STATUS_NOT_SUPPORTED;
+		break;
+	case IOCTL_BIOMETRIC_SET_INDICATOR:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested set fp indicator\n");
+		status = STATUS_NOT_SUPPORTED;
+		break;
 	default:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Unknown FP Ioctl: 0x%x\n", IoControlCode);
 		status = STATUS_NOT_SUPPORTED;
 		break;
 	}
 
-	WdfRequestComplete(Request, status);
+	if (completeRequest) {
+		WdfRequestComplete(Request, status);
+	}
 
 	return;
 }
