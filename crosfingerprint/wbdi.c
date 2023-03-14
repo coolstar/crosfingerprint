@@ -223,20 +223,35 @@ CaptureFpData(
 		p.mode = FP_MODE_DONT_CHANGE;
 
 		if (CaptureParams->Purpose == WINBIO_PURPOSE_IDENTIFY || CaptureParams->Purpose == WINBIO_PURPOSE_VERIFY)
-			p.mode = FP_MODE_CAPTURE | FP_MODE_MATCH;
+			p.mode = FP_MODE_CAPTURE | FP_MODE_MATCH | FP_MODE_FINGER_DOWN | FP_MODE_FINGER_UP;
 		else if (CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL ||
 			CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL_FOR_IDENTIFICATION ||
 			CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL_FOR_VERIFICATION)
-			p.mode = FP_MODE_ENROLL_IMAGE | FP_MODE_ENROLL_SESSION;
+			p.mode = FP_MODE_ENROLL_IMAGE | FP_MODE_ENROLL_SESSION | FP_MODE_FINGER_DOWN | FP_MODE_FINGER_UP;
 
-		status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
-		if (!NT_SUCCESS(status)) {
-			return status;
+		if (devContext->FingerUp) {
+
+			status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+			if (!NT_SUCCESS(status)) {
+				return status;
+			}
+			devContext->NextMode = FP_MODE_DEEPSLEEP;
+
+			CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+				"New Mode set to 0x%x\n", r.mode);
 		}
+		else {
+			devContext->NextMode = p.mode;
 
-		CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
-			"New Mode set to 0x%x\n", r.mode);
+			p.mode = (p.mode & FP_MODE_ENROLL_SESSION) | FP_MODE_FINGER_DOWN | FP_MODE_FINGER_UP;
+			status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+			if (!NT_SUCCESS(status)) {
+				return status;
+			}
 
+			CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+				"Setting mode to 0x%x on finger up\n", devContext->NextMode);
+		}
 		*CompleteRequest = FALSE;
 		devContext->CurrentCapture = Request;
 		WdfRequestMarkCancelable(Request, CancelFPRequest);
@@ -283,6 +298,28 @@ void CompleteFPRequest(
 	IN PCROSFP_CONTEXT   devContext,
 	IN UINT32 fp_events
 ) {
+	if ((fp_events & EC_MKBP_FP_FINGER_DOWN) == EC_MKBP_FP_FINGER_DOWN) {
+		devContext->FingerUp = FALSE;
+
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
+			"Got finger down!\n");
+
+	} else if ((fp_events & EC_MKBP_FP_FINGER_UP) == EC_MKBP_FP_FINGER_UP) {
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
+			"Finger Up!\n");
+		devContext->FingerUp = TRUE;
+
+		if (devContext->NextMode != FP_MODE_DEEPSLEEP) {
+			struct ec_params_fp_mode p;
+			p.mode = devContext->NextMode;
+
+			struct ec_response_fp_mode r;
+			NTSTATUS status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
+				"Set mode to 0x%x (finger up): %x\n", p.mode, status);
+		}
+	}
+
 	if (!devContext->CurrentCapture) {
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"No pending capture request!\n");
@@ -309,25 +346,14 @@ void CompleteFPRequest(
 	if (fp_events & EC_MKBP_FP_ENROLL) {
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"Enroll error %d, progress %d!\n", EC_MKBP_FP_ERRCODE(fp_events), EC_MKBP_FP_ENROLL_PROGRESS(fp_events));
+		devContext->NextMode = FP_MODE_DEEPSLEEP;
 	}
 	else if (fp_events & EC_MKBP_FP_MATCH) {
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"Match error %d, idx %d!\n", EC_MKBP_FP_ERRCODE(fp_events), EC_MKBP_FP_MATCH_IDX(fp_events));
+		devContext->NextMode = FP_MODE_DEEPSLEEP;
 	}
 	else {
-		if (fp_events & EC_MKBP_FP_IMAGE_READY) {
-			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
-				"Image Ready, but not enroll / match!\n");
-		}
-		else if (fp_events & EC_MKBP_FP_FINGER_UP) {
-			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
-				"Finger Up, but not enroll / match!\n");
-		}
-		else if (fp_events & EC_MKBP_FP_FINGER_DOWN) {
-			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
-				"Finger Down, but not enroll / match!\n");
-		}
-
 		return;
 	}
 

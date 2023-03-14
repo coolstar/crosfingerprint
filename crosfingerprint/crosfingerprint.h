@@ -58,6 +58,8 @@ typedef struct _CROSFP_CONTEXT
 
 	WDFINTERRUPT Interrupt;
     WDFREQUEST CurrentCapture;
+    BOOLEAN    FingerUp;
+    UINT32     NextMode;
 
     BOOLEAN DeviceReady;
     BOOLEAN DeviceCalibrated;

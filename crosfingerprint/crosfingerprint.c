@@ -299,6 +299,8 @@ Status
 	}
 
 	pDevice->DeviceReady = FALSE;
+	pDevice->FingerUp = TRUE;
+	pDevice->NextMode = FP_MODE_DEEPSLEEP;
 	NTSTATUS status2 = cros_ec_command(pDevice, EC_CMD_REBOOT, 0, NULL, 0, NULL, 0);
 	if (!NT_SUCCESS(status2)) {
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
