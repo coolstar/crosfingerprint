@@ -459,12 +459,28 @@ StorageAdapterAddRecord(
     _In_ PWINBIO_STORAGE_RECORD RecordContents
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(RecordContents);
-
     DebugLog("Called StorageAdapterAddRecord\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(RecordContents))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (Pipeline->StorageContext->DatabaseCount) {
+        hr = WINBIO_E_DATABASE_FULL;
+        goto cleanup;
+    }
+
+    RtlCopyMemory(&Pipeline->StorageContext->Record, RecordContents, sizeof(*RecordContents));
+    Pipeline->StorageContext->DatabaseCount++;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -500,7 +516,21 @@ StorageAdapterQueryBySubject(
 
     DebugLog("Called StorageAdapterQueryBySubject. Identity Type %d\n", Identity->Type);
 
-    return WINBIO_E_DATABASE_NO_RESULTS;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (!Pipeline->StorageContext->DatabaseCount) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -531,12 +561,22 @@ StorageAdapterGetRecordCount(
     _Out_ PSIZE_T RecordCount
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(RecordCount);
-
     DebugLog("Called StorageAdapterGetRecordCount\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) || 
+        !ARGUMENT_PRESENT(RecordCount))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    *RecordCount = Pipeline->StorageContext->DatabaseCount;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -546,11 +586,25 @@ StorageAdapterFirstRecord(
     _Inout_ PWINBIO_PIPELINE Pipeline
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-
     DebugLog("Called StorageAdapterFirstRecord\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    Pipeline->StorageContext->DatabaseCursor = 0;
+
+    if (!Pipeline->StorageContext->DatabaseCount) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -560,11 +614,28 @@ StorageAdapterNextRecord(
     _Inout_ PWINBIO_PIPELINE Pipeline
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-
     DebugLog("Called StorageAdapterNextRecord\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (!Pipeline->StorageContext->DatabaseCount) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+    } else if (Pipeline->StorageContext->DatabaseCursor >= Pipeline->StorageContext->DatabaseCount) {
+        hr = WINBIO_E_DATABASE_NO_MORE_RECORDS;
+    }
+    else {
+        Pipeline->StorageContext->DatabaseCursor++;
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -575,12 +646,26 @@ StorageAdapterGetCurrentRecord(
     _Out_ PWINBIO_STORAGE_RECORD RecordContents
     )
 {
-   UNREFERENCED_PARAMETER(Pipeline);
-   UNREFERENCED_PARAMETER(RecordContents);
+    DebugLog("Called StorageAdapterGetCurrentRecord\n");
 
-   DebugLog("Called StorageAdapterGetCurrentRecord\n");
+    HRESULT hr = S_OK;
 
-   return E_NOTIMPL;
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (!Pipeline->StorageContext->DatabaseCount) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+        goto cleanup;
+    }
+
+    RtlCopyMemory(RecordContents, &Pipeline->StorageContext->Record, sizeof(*RecordContents));
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 

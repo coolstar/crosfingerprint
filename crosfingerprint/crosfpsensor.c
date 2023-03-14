@@ -41,7 +41,7 @@ NTSTATUS CrosFPSensorStatus
 	}
 
 	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
-		"FP Mode: 0x%x\n", r.mode);
+		"FP Mode: 0x%x, Calibrated? %d\n", r.mode, devContext->DeviceCalibrated);
 
 	if (!devContext->DeviceCalibrated) {
 		*sensorMode = WINBIO_SENSOR_NOT_CALIBRATED;

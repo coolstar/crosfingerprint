@@ -40,6 +40,7 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "SensorAdapter.h"
+#include "../crosfingerprint/ec_commands.h"
 
 #include <winioctl.h>
 #include <winbio_types.h>
@@ -341,16 +342,13 @@ SensorAdapterQueryStatus(
             &Diag,
             sizeof(WINBIO_DIAGNOSTICS),
             &BytesReturned,
-            &Pipeline->SensorContext->Overlapped)) {
-            if (GetLastError() != ERROR_IO_PENDING ||
-                (SetLastError(0), !GetOverlappedResult(Pipeline->SensorHandle, &Pipeline->SensorContext->Overlapped, &BytesReturned, TRUE))) {
-                DWORD LastError = GetLastError();
-                if (LastError == ERROR_CANCELLED || LastError == ERROR_OPERATION_ABORTED) {
-                    return WINBIO_E_CANCELED;
-                }
-                else {
-                    return HRESULT_FROM_WIN32(LastError);
-                }
+            NULL)) {
+            DWORD LastError = GetLastError();
+            if (LastError == ERROR_CANCELLED || LastError == ERROR_OPERATION_ABORTED) {
+                return WINBIO_E_CANCELED;
+            }
+            else {
+                return HRESULT_FROM_WIN32(LastError);
             }
         }
         if (BytesReturned != 4) {
@@ -462,20 +460,17 @@ SensorAdapterStartCapture(
         &Diag,
         sizeof(WINBIO_DIAGNOSTICS),
         &BytesReturned,
-        &Pipeline->SensorContext->Overlapped)) {
-        if (GetLastError() != ERROR_IO_PENDING ||
-            (SetLastError(0), !GetOverlappedResult(Pipeline->SensorHandle, &Pipeline->SensorContext->Overlapped, &BytesReturned, TRUE))) {
-            DWORD LastError = GetLastError();
-            DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-            return HRESULT_FROM_WIN32(LastError);
-        }
+        NULL)) {
+        DWORD LastError = GetLastError();
+        DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
+        return HRESULT_FROM_WIN32(LastError);
     }
     if (FAILED(Diag.WinBioHresult)) {
         DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS errored 0x%x\n", Diag.WinBioHresult);
         return Diag.WinBioHresult;
     }
 
-    if (Diag.SensorStatus & WINBIO_SENSOR_NOT_CALIBRATED) {
+    if ((Diag.SensorStatus & WINBIO_SENSOR_NOT_CALIBRATED) == WINBIO_SENSOR_NOT_CALIBRATED) {
         WINBIO_CALIBRATION_INFO Calib = { 0 };
 
         if (!DeviceIoControl(Pipeline->SensorHandle,
@@ -485,13 +480,10 @@ SensorAdapterStartCapture(
             &Calib,
             sizeof(WINBIO_CALIBRATION_INFO),
             &BytesReturned,
-            &Pipeline->SensorContext->Overlapped)) {
-            if (GetLastError() != ERROR_IO_PENDING ||
-                (SetLastError(0), !GetOverlappedResult(Pipeline->SensorHandle, &Pipeline->SensorContext->Overlapped, &BytesReturned, TRUE))) {
-                DWORD LastError = GetLastError();
-                DebugLog("IOCTL_BIOMETRIC_CALIBRATE failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-                return HRESULT_FROM_WIN32(LastError);
-            }
+            NULL)) {
+            DWORD LastError = GetLastError();
+            DebugLog("IOCTL_BIOMETRIC_CALIBRATE failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
+            return HRESULT_FROM_WIN32(LastError);
         }
         if (FAILED(Calib.WinBioHresult)) {
             DebugLog("IOCTL_BIOMETRIC_CALIBRATE errored 0x%x\n", Calib.WinBioHresult);
@@ -504,14 +496,14 @@ SensorAdapterStartCapture(
     Parameters.Purpose = Purpose;
     Parameters.Flags = WINBIO_DATA_FLAG_PROCESSED;
 
-    RtlZeroMemory(&Pipeline->SensorContext->CaptureData, sizeof(WINBIO_CAPTURE_DATA));
+    RtlZeroMemory(&Pipeline->SensorContext->CaptureData, sizeof(CRFP_CAPTURE_DATA));
 
     if (!DeviceIoControl(Pipeline->SensorHandle,
         IOCTL_BIOMETRIC_CAPTURE_DATA,
         &Parameters,
         sizeof(WINBIO_CAPTURE_PARAMETERS),
         &Pipeline->SensorContext->CaptureData,
-        sizeof(WINBIO_CAPTURE_DATA),
+        sizeof(CRFP_CAPTURE_DATA),
         &BytesReturned,
         &Pipeline->SensorContext->Overlapped)) {
 
@@ -540,14 +532,42 @@ SensorAdapterFinishCapture(
         return E_POINTER;
     }
 
+    SetLastError(0);
+
     DWORD BytesReturned;
     if (!GetOverlappedResult(Pipeline->SensorHandle, &Pipeline->SensorContext->Overlapped, &BytesReturned, TRUE)) {
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
-    DebugLog("Called SensorAdapterFinishCapture %x %x\n", Pipeline->SensorContext->CaptureData.RejectDetail, Pipeline->SensorContext->CaptureData.WinBioHresult);
+    UINT32 MKBPResult = Pipeline->SensorContext->CaptureData.FPMKBPValue;
+    *RejectDetail = 0;
+    
+    if (MKBPResult & EC_MKBP_FP_ENROLL) {
+        switch (EC_MKBP_FP_ERRCODE(MKBPResult)) {
+        case EC_MKBP_FP_ERR_ENROLL_LOW_QUALITY:
+            *RejectDetail = WINBIO_FP_POOR_QUALITY;
+            break;
+        case EC_MKBP_FP_ERR_ENROLL_LOW_COVERAGE:
+            *RejectDetail = WINBIO_FP_TOO_SHORT;
+            break;
+        default:
+            break;
+        }
+    }
+    else if (MKBPResult & EC_MKBP_FP_MATCH) {
+        switch (EC_MKBP_FP_ERRCODE(MKBPResult)) {
+        case EC_MKBP_FP_ERR_MATCH_NO_LOW_QUALITY:
+            *RejectDetail = WINBIO_FP_POOR_QUALITY;
+            break;
+        case EC_MKBP_FP_ERR_MATCH_NO_LOW_COVERAGE:
+            *RejectDetail = WINBIO_FP_TOO_SHORT;
+            break;
+        default:
+            break;
+        }
+    }
 
-    *RejectDetail = Pipeline->SensorContext->CaptureData.RejectDetail;
+    DebugLog("Called SensorAdapterFinishCapture MKBP: %x, ret %x, rej %x\n", Pipeline->SensorContext->CaptureData.FPMKBPValue, Pipeline->SensorContext->CaptureData.WinBioHresult, *RejectDetail);
 
     return Pipeline->SensorContext->CaptureData.WinBioHresult;
 }
@@ -589,7 +609,11 @@ SensorAdapterCancel(
     }
 
     if (!CancelIoEx(Pipeline->SensorHandle, NULL)) {
-        return GetLastError();
+        DWORD LastError = GetLastError();
+        if (LastError != ERROR_NOT_FOUND) {
+            DebugLog("SensorAdapterCancel failed with %d\n", LastError);
+            return HRESULT_FROM_WIN32(LastError);
+        }
     }
 
     return S_OK;
@@ -636,38 +660,37 @@ SensorAdapterPushDataToEngine(
         goto cleanup;
     }
 
-    if (//sensorContext->CaptureData.CaptureData.Data != NULL &&
-        sensorContext->CaptureData.PayloadSize >= sizeof(WINBIO_CAPTURE_DATA) &&
-        //sensorContext->CaptureData->CaptureData.Size != 0 &&
-        sensorContext->CaptureData.SensorStatus == WINBIO_SENSOR_ACCEPT)
+    if (sensorContext->CaptureData.PayloadSize >= sizeof(CRFP_CAPTURE_DATA) &&
+        (sensorContext->CaptureData.FPMKBPValue & (EC_MKBP_FP_ENROLL | EC_MKBP_FP_MATCH)) != 0)
     {
         // There is valid capture data in the Pipeline. Call the 
         // WbioEngineAcceptSampleData function to notify the engine adapter, but
         // retain ownership of the buffer in the sensor adapter. 
         // WbioEngineAcceptSampleData is a wrapper function declared in the
         // Winbio_adapter.h header file.
-        DebugLog("Forwarding to engine. Purpose 0x%x, Flags 0x%x\n", Purpose, Flags);
+        DebugLog("Forwarding to engine. Purpose 0x%x, Flags 0x%x. Raw MKBP value 0x%x\n", Purpose, Flags, sensorContext->CaptureData.FPMKBPValue);
 
         hr = WbioEngineAcceptSampleData(
             Pipeline,
-            (PWINBIO_BIR)sensorContext->CaptureData.CaptureData.Data,
-            sensorContext->CaptureData.CaptureData.Size,
+            (PWINBIO_BIR)&sensorContext->CaptureData.FPMKBPValue,
+            sizeof(UINT32),
             Purpose,
             RejectDetail
         );
     }
-    else if (//sensorContext->CaptureData.CaptureData != NULL &&
-        sensorContext->CaptureData.PayloadSize >= sizeof(WINBIO_CAPTURE_DATA) &&
+    else if (sensorContext->CaptureData.PayloadSize >= sizeof(CRFP_CAPTURE_DATA) &&
         sensorContext->CaptureData.WinBioHresult == WINBIO_E_BAD_CAPTURE)
     {
         // The most recent capture was not acceptable.  Do not attempt to push 
         // the sample to the engine. Instead, simply return the reject detail
         // information generated by the previous capture.
         hr = sensorContext->CaptureData.WinBioHresult;
-        *RejectDetail = sensorContext->CaptureData.RejectDetail;
+        *RejectDetail = WINBIO_FP_POOR_QUALITY;
+        DebugLog("Bad capture\n");
     }
     else
     {
+        DebugLog("No capture data (Payload Size %d)\n", sensorContext->CaptureData.PayloadSize);
         hr = WINBIO_E_NO_CAPTURE_DATA;
     }
 

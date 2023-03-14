@@ -67,14 +67,12 @@ typedef struct _WINIBIO_ENGINE_CONTEXT {
     //                        one-to-one comparison between the Template
     //                        and the Feature Set.
     //
-    PVOID x;
-    PVOID y;
-    PVOID z;
-
     struct Enrollment {
         BOOLEAN InProgress;
-        INT SampleCount;
+        INT EnrollmentProgress;
     } Enrollment;
+
+    UINT32 LastMKBPValue;
 
 } WINIBIO_ENGINE_CONTEXT, *PWINIBIO_ENGINE_CONTEXT;
 

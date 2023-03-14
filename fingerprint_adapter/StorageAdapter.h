@@ -70,8 +70,10 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
     //
     WINBIO_UUID DatabaseId;
     PVOID DatabaseHandle;
-    PVOID ResultSet;
-    PVOID ResultSetCursor;
+
+    INT DatabaseCursor;
+    INT DatabaseCount;
+    WINBIO_STORAGE_RECORD Record;
 
 } WINIBIO_STORAGE_CONTEXT, *PWINIBIO_STORAGE_CONTEXT;
 

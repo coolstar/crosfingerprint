@@ -40,7 +40,7 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "EngineAdapter.h"
-
+#include "../crosfingerprint/ec_commands.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -358,11 +358,21 @@ EngineAdapterClearContext(
     _Inout_ PWINBIO_PIPELINE Pipeline
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-
     DebugLog("Called EngineAdapterClearContext\n");
 
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    Pipeline->EngineContext->LastMKBPValue = 0;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -487,7 +497,6 @@ EngineAdapterAcceptSampleData(
     _Out_ PWINBIO_REJECT_DETAIL RejectDetail
     )
 {
-    UNREFERENCED_PARAMETER(SampleSize);
     UNREFERENCED_PARAMETER(Purpose);
 
     DebugLog("Called EngineAdapterAcceptSampleData\n");
@@ -508,13 +517,19 @@ EngineAdapterAcceptSampleData(
     PWINIBIO_ENGINE_CONTEXT context =
         (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
 
+    context->LastMKBPValue = 0;
+
     // Verify that input arguments are valid.
-    if (//SampleSize == 0 ||
+    if (SampleSize < sizeof(UINT32) ||
         Purpose == WINBIO_NO_PURPOSE_AVAILABLE)
     {
         hr = E_INVALIDARG;
         goto cleanup;
     }
+
+    UINT32 MKBPValue = *(UINT32*)SampleBuffer;
+    DebugLog("[Engine] MKBP Value: 0x%x\n", MKBPValue);
+    context->LastMKBPValue = MKBPValue;
 
     *RejectDetail = 0;
 
@@ -589,6 +604,8 @@ EngineAdapterIdentifyFeatureSet(
     DebugLog("Called EngineAdapterIdentifyFeatureSet\n");
 
     HRESULT hr = S_OK;
+    SIZE_T recordCount = 0;
+    WINBIO_STORAGE_RECORD thisRecord;
 
     // Verify that pointer arguments are not NULL.
     if (!ARGUMENT_PRESENT(Pipeline) ||
@@ -604,14 +621,73 @@ EngineAdapterIdentifyFeatureSet(
         goto cleanup;
     }
 
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Initialize the return values.
+    ZeroMemory(Identity, sizeof(WINBIO_IDENTITY));
+    Identity->Type = WINBIO_ID_TYPE_NULL;
+    *SubFactor = WINBIO_SUBTYPE_NO_INFORMATION;
     *PayloadBlob = NULL;
     *PayloadBlobSize = 0;
     *HashValue = NULL;
     *HashSize = 0;
     *RejectDetail = 0;
-    hr = WINBIO_E_UNKNOWN_ID;
+
+    // Determine the size of the result set. WbioStorageGetRecordCount is a wrapper
+    // function in the Winbio_adapter.h header file.
+    hr = WbioStorageGetRecordCount(Pipeline, &recordCount);
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
+
+    UINT8 matchIdx = (EC_MKBP_FP_MATCH_IDX_MASK >> EC_MKBP_FP_MATCH_IDX_OFFSET);
+    if (context->LastMKBPValue & EC_MKBP_FP_MATCH) {
+        matchIdx = EC_MKBP_FP_MATCH_IDX(context->LastMKBPValue);
+    }
+    DebugLog("Match Index: %d\n", matchIdx);
+
+    if (matchIdx == (EC_MKBP_FP_MATCH_IDX_MASK >> EC_MKBP_FP_MATCH_IDX_OFFSET)) {
+        hr = WINBIO_E_UNKNOWN_ID;
+        goto cleanup;
+    }
+
+    // Point the result set cursor at the first record. WbioStorageFirstRecord
+    // is a wrapper function in the Winbio_adapter.h header file.
+    hr = WbioStorageFirstRecord(Pipeline);
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
+
+    for (UINT8 i = 0; i < matchIdx; i++) {
+        hr = WbioStorageNextRecord(Pipeline);
+        if (FAILED(hr))
+        {
+            goto cleanup;
+        }
+    }
+
+    hr = WbioStorageGetCurrentRecord(Pipeline, &thisRecord);
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
+
+    // Return information about the matching template to the caller.
+    CopyMemory(Identity, thisRecord.Identity, sizeof(WINBIO_IDENTITY));
+
+    *SubFactor = thisRecord.SubFactor;
+    *PayloadBlob = thisRecord.PayloadBlob;
+    *PayloadBlobSize = thisRecord.PayloadBlobSize;
 
 cleanup:
+    if (hr == WINBIO_E_DATABASE_NO_RESULTS)
+    {
+        hr = WINBIO_E_UNKNOWN_ID;
+    }
     return hr;
 }
 //-----------------------------------------------------------------------------
@@ -650,7 +726,7 @@ EngineAdapterCreateEnrollment(
     // your enrollment object contains at a minimum a field that specifies 
     // the number of biometric samples and another that specifies whether a
     // new enrollment is in progress.
-    context->Enrollment.SampleCount = 0;
+    context->Enrollment.EnrollmentProgress = 0;
     context->Enrollment.InProgress = TRUE;
 
 cleanup:
@@ -681,21 +757,24 @@ EngineAdapterUpdateEnrollment(
     PWINIBIO_ENGINE_CONTEXT context =
         (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
 
-    // Return if an enrollment is already in progress. This example assumes that 
+    // Return if an enrollment is not in progress. This example assumes that 
     // your engine adapter context contains an enrollment object.
-    if (context->Enrollment.InProgress == TRUE)
+    if (context->Enrollment.InProgress != TRUE)
     {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
     }
 
-    *RejectDetail = FALSE;
+    *RejectDetail = 0;
 
-    context->Enrollment.SampleCount++;
-    if (context->Enrollment.SampleCount == 5) {
+    if (context->LastMKBPValue & EC_MKBP_FP_ENROLL)
+        context->Enrollment.EnrollmentProgress = EC_MKBP_FP_ENROLL_PROGRESS(context->LastMKBPValue);
+    if (context->Enrollment.EnrollmentProgress >= 100) {
+        DebugLog("Returning Enrollment complete\n");
         hr = S_OK;
     }
     else {
+        DebugLog("Returning Enrollment need more data\n");
         hr = WINBIO_I_MORE_DATA;
     }
 
@@ -747,14 +826,33 @@ EngineAdapterCheckForDuplicate(
     _Out_ PBOOLEAN Duplicate
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(Identity);
-    UNREFERENCED_PARAMETER(SubFactor);
-    UNREFERENCED_PARAMETER(Duplicate);
-
     DebugLog("Called EngineAdapterCheckForDuplicate\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(Identity) ||
+        !ARGUMENT_PRESENT(SubFactor) ||
+        !ARGUMENT_PRESENT(Duplicate))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Zero the memory pointed to by the Identity argument and set the
+    // pointer to NULL.
+    ZeroMemory(Identity, sizeof(WINBIO_IDENTITY));
+    Identity->Type = WINBIO_ID_TYPE_NULL;
+
+    // Eliminate sub-factor information.
+    *SubFactor = WINBIO_SUBTYPE_NO_INFORMATION;
+
+    // Initialize the Boolean Duplicate argument to FALSE.
+    *Duplicate = FALSE;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -768,15 +866,58 @@ EngineAdapterCommitEnrollment(
     _In_ SIZE_T PayloadBlobSize
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(Identity);
     UNREFERENCED_PARAMETER(SubFactor);
     UNREFERENCED_PARAMETER(PayloadBlob);
     UNREFERENCED_PARAMETER(PayloadBlobSize);
 
     DebugLog("Called EngineAdapterCommitEnrollment\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+    WINBIO_STORAGE_RECORD newTemplate = { 0 };
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(Identity))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Return if an enrollment is not in progress. This example assumes that 
+    // an enrollment object is part of your engine context structure.
+    if (context->Enrollment.InProgress != TRUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    newTemplate.Identity = Identity;
+    newTemplate.SubFactor = SubFactor;
+    newTemplate.IndexVector = 0;
+    newTemplate.TemplateBlob = NULL;
+    newTemplate.TemplateBlobSize = 0;
+    newTemplate.PayloadBlob = PayloadBlob;
+    newTemplate.PayloadBlobSize = PayloadBlobSize;
+
+    hr = WbioStorageAddRecord(
+        Pipeline,
+        &newTemplate
+    );
+
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
+
+    // Specify that the enrollment process has been completed.
+    context->Enrollment.InProgress = FALSE;
+    
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 

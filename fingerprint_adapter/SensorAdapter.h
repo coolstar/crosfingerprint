@@ -34,6 +34,7 @@ NOTES:
 #pragma once
 
 #include "winbio_adapter.h"
+#include "../crosfingerprint/crosfpdata.h"
 #include <winbio_ioctl.h>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -65,7 +66,7 @@ typedef struct _WINIBIO_SENSOR_CONTEXT {
     SIZE_T SampleSize;
 
     OVERLAPPED Overlapped;
-    WINBIO_CAPTURE_DATA CaptureData;
+    CRFP_CAPTURE_DATA CaptureData;
 
 } WINIBIO_SENSOR_CONTEXT, *PWINIBIO_SENSOR_CONTEXT;
 

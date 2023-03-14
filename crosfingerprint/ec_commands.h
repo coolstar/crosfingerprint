@@ -635,7 +635,7 @@ struct ec_params_read_memmap {
  */
 #include <pshpack1.h>
 struct ec_params_get_cmd_versions {
-	uint8_t cmd;
+	UINT8 cmd;
 };
 #include <poppack.h>
 
@@ -646,7 +646,7 @@ struct ec_params_get_cmd_versions {
  */
 #include <pshpack2.h>
 struct ec_params_get_cmd_versions_v1 {
-	uint16_t cmd;
+	UINT16 cmd;
 };
 #include <poppack.h>
 
@@ -657,7 +657,7 @@ struct ec_params_get_cmd_versions_v1 {
  */
 #include <pshpack4.h>
 struct ec_response_get_cmd_versions {
-	uint32_t version_mask;
+	UINT32 version_mask;
 };
 #include <poppack.h>
 
@@ -955,9 +955,9 @@ struct ec_response_get_features {
 #include <pshpack2.h>
 
 struct ec_params_fp_passthru {
-	uint16_t len;		/* Number of bytes to write then read */
-	uint16_t flags;		/* EC_FP_FLAG_xxx */
-	uint8_t data[];		/* Data to send */
+	UINT16 len;		/* Number of bytes to write then read */
+	UINT16 flags;		/* EC_FP_FLAG_xxx */
+	UINT8 data[];		/* Data to send */
 };
 
 #include <poppack.h>
@@ -1026,11 +1026,11 @@ enum fp_capture_type {
 #include <pshpack4.h>
 
 struct ec_params_fp_mode {
-	uint32_t mode; /* as defined by FP_MODE_ constants */
+	UINT32 mode; /* as defined by FP_MODE_ constants */
 };
 
 struct ec_response_fp_mode {
-	uint32_t mode; /* as defined by FP_MODE_ constants */
+	UINT32 mode; /* as defined by FP_MODE_ constants */
 };
 
 #include <poppack.h>
@@ -1055,38 +1055,38 @@ struct ec_response_fp_mode {
 
 struct ec_response_fp_info_v0 {
 	/* Sensor identification */
-	uint32_t vendor_id;
-	uint32_t product_id;
-	uint32_t model_id;
-	uint32_t version;
+	UINT32 vendor_id;
+	UINT32 product_id;
+	UINT32 model_id;
+	UINT32 version;
 	/* Image frame characteristics */
-	uint32_t frame_size;
-	uint32_t pixel_format; /* using V4L2_PIX_FMT_ */
-	uint16_t width;
-	uint16_t height;
-	uint16_t bpp;
-	uint16_t errors; /* see FP_ERROR_ flags above */
+	UINT32 frame_size;
+	UINT32 pixel_format; /* using V4L2_PIX_FMT_ */
+	UINT16 width;
+	UINT16 height;
+	UINT16 bpp;
+	UINT16 errors; /* see FP_ERROR_ flags above */
 };
 
 struct ec_response_fp_info {
 	/* Sensor identification */
-	uint32_t vendor_id;
-	uint32_t product_id;
-	uint32_t model_id;
-	uint32_t version;
+	UINT32 vendor_id;
+	UINT32 product_id;
+	UINT32 model_id;
+	UINT32 version;
 	/* Image frame characteristics */
-	uint32_t frame_size;
-	uint32_t pixel_format; /* using V4L2_PIX_FMT_ */
-	uint16_t width;
-	uint16_t height;
-	uint16_t bpp;
-	uint16_t errors; /* see FP_ERROR_ flags above */
+	UINT32 frame_size;
+	UINT32 pixel_format; /* using V4L2_PIX_FMT_ */
+	UINT16 width;
+	UINT16 height;
+	UINT16 bpp;
+	UINT16 errors; /* see FP_ERROR_ flags above */
 	/* Template/finger current information */
-	uint32_t template_size;  /* max template size in bytes */
-	uint16_t template_max;   /* maximum number of fingers/templates */
-	uint16_t template_valid; /* number of valid fingers/templates */
-	uint32_t template_dirty; /* bitmap of templates with MCU side changes */
-	uint32_t template_version; /* version of the template format */
+	UINT32 template_size;  /* max template size in bytes */
+	UINT16 template_max;   /* maximum number of fingers/templates */
+	UINT16 template_valid; /* number of valid fingers/templates */
+	UINT32 template_dirty; /* bitmap of templates with MCU side changes */
+	UINT32 template_version; /* version of the template format */
 };
 
 #include <poppack.h>
@@ -1108,7 +1108,7 @@ struct ec_response_fp_info {
 
 /* Constants for encryption parameters */
 #define FP_CONTEXT_NONCE_BYTES 12
-#define FP_CONTEXT_USERID_WORDS (32 / sizeof(uint32_t))
+#define FP_CONTEXT_USERID_WORDS (32 / sizeof(UINT32))
 #define FP_CONTEXT_TAG_BYTES 16
 #define FP_CONTEXT_ENCRYPTION_SALT_BYTES 16
 #define FP_CONTEXT_TPM_BYTES 32
@@ -1120,16 +1120,16 @@ struct ec_fp_template_encryption_metadata {
 	/*
 	 * Version of the structure format (N=3).
 	 */
-	uint16_t struct_version;
+	UINT16 struct_version;
 	/* Reserved bytes, set to 0. */
-	uint16_t reserved;
+	UINT16 reserved;
 	/*
 	 * The salt is *only* ever used for key derivation. The nonce is unique,
 	 * a different one is used for every message.
 	 */
-	uint8_t nonce[FP_CONTEXT_NONCE_BYTES];
-	uint8_t encryption_salt[FP_CONTEXT_ENCRYPTION_SALT_BYTES];
-	uint8_t tag[FP_CONTEXT_TAG_BYTES];
+	UINT8 nonce[FP_CONTEXT_NONCE_BYTES];
+	UINT8 encryption_salt[FP_CONTEXT_ENCRYPTION_SALT_BYTES];
+	UINT8 tag[FP_CONTEXT_TAG_BYTES];
 };
 
 #include <pshpack4.h>
@@ -1140,8 +1140,8 @@ struct ec_params_fp_frame {
 	 * in the high nibble, and the real offset within the frame in
 	 * FP_FRAME_OFFSET_MASK.
 	 */
-	uint32_t offset;
-	uint32_t size;
+	UINT32 offset;
+	UINT32 size;
 };
 
 #include <poppack.h>
@@ -1155,16 +1155,16 @@ struct ec_params_fp_frame {
 #include <pshpack4.h>
 
 struct ec_params_fp_template {
-	uint32_t offset;
-	uint32_t size;
-	uint8_t data[];
+	UINT32 offset;
+	UINT32 size;
+	UINT8 data[];
 };
 
 /* Clear the current fingerprint user context and set a new one */
 #define EC_CMD_FP_CONTEXT 0x0406
 
 struct ec_params_fp_context {
-	uint32_t userid[FP_CONTEXT_USERID_WORDS];
+	UINT32 userid[FP_CONTEXT_USERID_WORDS];
 };
 
 enum fp_context_action {
@@ -1174,9 +1174,9 @@ enum fp_context_action {
 
 /* Version 1 of the command is "asynchronous". */
 struct ec_params_fp_context_v1 {
-	uint8_t action;		/**< enum fp_context_action */
-	uint8_t reserved[3];    /**< padding for alignment */
-	uint32_t userid[FP_CONTEXT_USERID_WORDS];
+	UINT8 action;		/**< enum fp_context_action */
+	UINT8 reserved[3];    /**< padding for alignment */
+	UINT32 userid[FP_CONTEXT_USERID_WORDS];
 };
 
 #include <poppack.h>
@@ -1189,15 +1189,15 @@ struct ec_params_fp_context_v1 {
 #include <pshpack2.h>
 
 struct ec_response_fp_stats {
-	uint32_t capture_time_us;
-	uint32_t matching_time_us;
-	uint32_t overall_time_us;
+	UINT32 capture_time_us;
+	UINT32 matching_time_us;
+	UINT32 overall_time_us;
 	struct {
-		uint32_t lo;
-		uint32_t hi;
+		UINT32 lo;
+		UINT32 hi;
 	} overall_t0;
-	uint8_t timestamps_invalid;
-	int8_t template_matched;
+	UINT8 timestamps_invalid;
+	INT8 template_matched;
 };
 
 #include <poppack.h>
@@ -1209,11 +1209,11 @@ struct ec_params_fp_seed {
 	/*
 	 * Version of the structure format (N=3).
 	 */
-	uint16_t struct_version;
+	UINT16 struct_version;
 	/* Reserved bytes, set to 0. */
-	uint16_t reserved;
+	UINT16 reserved;
 	/* Seed from the TPM. */
-	uint8_t seed[FP_CONTEXT_TPM_BYTES];
+	UINT8 seed[FP_CONTEXT_TPM_BYTES];
 };
 
 #define EC_CMD_FP_ENC_STATUS 0x0409
@@ -1223,20 +1223,20 @@ struct ec_params_fp_seed {
 
 struct ec_response_fp_encryption_status {
 	/* Used bits in encryption engine status */
-	uint32_t valid_flags;
+	UINT32 valid_flags;
 	/* Encryption engine status */
-	uint32_t status;
+	UINT32 status;
 };
 
 #define EC_CMD_FP_READ_MATCH_SECRET 0x040A
 struct ec_params_fp_read_match_secret {
-	uint16_t fgr;
+	UINT16 fgr;
 };
 
 /* The positive match secret has the length of the SHA256 digest. */
 #define FP_POSITIVE_MATCH_SECRET_BYTES 32
 struct ec_response_fp_read_match_secret {
-	uint8_t positive_match_secret[FP_POSITIVE_MATCH_SECRET_BYTES];
+	UINT8 positive_match_secret[FP_POSITIVE_MATCH_SECRET_BYTES];
 };
 
 #include <poppack.h>
@@ -1301,16 +1301,16 @@ enum ec_mkbp_info_type {
 	  *
 	  * event_type must be set to one of the values in enum ec_mkbp_event.
 	  *
-	  * For EC_MKBP_EVENT_KEY_MATRIX, returns uint8_t key_matrix[13]
+	  * For EC_MKBP_EVENT_KEY_MATRIX, returns UINT8 key_matrix[13]
 	  * indicating the current state of the keyboard matrix.
 	  *
-	  * For EC_MKBP_EVENT_HOST_EVENT, return uint32_t host_event, the raw
+	  * For EC_MKBP_EVENT_HOST_EVENT, return UINT32 host_event, the raw
 	  * event state.
 	  *
-	  * For EC_MKBP_EVENT_BUTTON, returns uint32_t buttons, indicating the
+	  * For EC_MKBP_EVENT_BUTTON, returns UINT32 buttons, indicating the
 	  * state of supported buttons.
 	  *
-	  * For EC_MKBP_EVENT_SWITCH, returns uint32_t switches, indicating the
+	  * For EC_MKBP_EVENT_SWITCH, returns UINT32 switches, indicating the
 	  * state of supported switches.
 	  */
 	  EC_MKBP_INFO_CURRENT = 2,

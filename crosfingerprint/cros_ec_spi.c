@@ -70,6 +70,8 @@ NTSTATUS cros_ec_pkt_xfer(
 	RtlZeroMemory(dout, dout_len);
 	RtlZeroMemory(din, din_len);
 
+	WdfWaitLockAcquire(pDevice->IoLock, NULL);
+
 	status = SpbLockController(&pDevice->SpbContext);
 	if (!NT_SUCCESS(status)) {
 		goto out;
@@ -196,6 +198,8 @@ NTSTATUS cros_ec_pkt_xfer(
 out:
 	if (controllerLocked)
 		SpbUnlockController(&pDevice->SpbContext);
+
+	WdfWaitLockRelease(pDevice->IoLock);
 
 	if (dout) {
 		free(dout);

@@ -374,6 +374,10 @@ CrosFPEvtDeviceAdd(
 	// Setup the device context
 	//
 
+	WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&attributes, CROSFP_REQ_CONTEXT);
+
+	WdfDeviceInitSetRequestAttributes(DeviceInit, &attributes);
+
 	WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&attributes, CROSFP_CONTEXT);
 
 	//
@@ -408,6 +412,23 @@ CrosFPEvtDeviceAdd(
 
 	devContext->FxDevice = device;
 	devContext->CurrentCapture = NULL;
+
+	//
+	// Allocate a waitlock to guard access to the default buffers
+	//
+	status = WdfWaitLockCreate(
+		WDF_NO_OBJECT_ATTRIBUTES,
+		&devContext->IoLock);
+
+	if (!NT_SUCCESS(status))
+	{
+		CrosFPPrint(
+			DEBUG_LEVEL_ERROR,
+			DBG_IOCTL,
+			"Error creating Io Lock - %!STATUS!\n",
+			status);
+		return status;
+	}
 
 	WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchParallel);
 
@@ -474,6 +495,9 @@ CrosFPEvtIoDeviceControl(
 
 	device = WdfIoQueueGetDevice(Queue);
 	devContext = GetDeviceContext(device);
+
+	PCROSFP_REQ_CONTEXT reqContext = GetRequestContext(Request);
+	reqContext->devContext = devContext;
 
 	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
 		"CrosFPEvtIoDeviceControl start\n");
