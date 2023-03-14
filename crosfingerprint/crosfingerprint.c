@@ -541,16 +541,6 @@ CrosFPEvtIoDeviceControl(
 			"Requested get fp algorithms\n");
 		status = STATUS_NOT_SUPPORTED;
 		break;
-	case IOCTL_BIOMETRIC_GET_INDICATOR:
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
-			"Requested get fp indicator\n");
-		status = STATUS_NOT_SUPPORTED;
-		break;
-	case IOCTL_BIOMETRIC_SET_INDICATOR:
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
-			"Requested set fp indicator\n");
-		status = STATUS_NOT_SUPPORTED;
-		break;
 	default:
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
 			"Unknown FP Ioctl: 0x%x\n", IoControlCode);
