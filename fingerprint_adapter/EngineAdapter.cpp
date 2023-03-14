@@ -317,8 +317,18 @@ EngineAdapterAttach(
     }
 
     Pipeline->EngineContext = newContext;
+    Pipeline->EngineHandle = Pipeline->SensorHandle;
 
     DebugLog("Handles: sensor 0x%lx, engine 0x%lx, storage 0x%lx\n", Pipeline->SensorHandle, Pipeline->EngineHandle, Pipeline->StorageHandle);
+
+    struct ec_response_fp_info info;
+    hr = ec_command(Pipeline->EngineHandle, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(info));
+    if (FAILED(hr)) {
+        DebugLog("Failed to get FP info\n");
+        goto cleanup;
+    }
+
+    DebugLog("Max Templates: %d, Template Size: %d\n", info.template_max, info.template_size);
 
 cleanup:
     return hr;
@@ -866,7 +876,6 @@ EngineAdapterCommitEnrollment(
     _In_ SIZE_T PayloadBlobSize
     )
 {
-    UNREFERENCED_PARAMETER(SubFactor);
     UNREFERENCED_PARAMETER(PayloadBlob);
     UNREFERENCED_PARAMETER(PayloadBlobSize);
 

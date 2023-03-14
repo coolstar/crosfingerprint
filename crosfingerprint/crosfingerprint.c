@@ -298,6 +298,18 @@ Status
 		DebugLog("EC Command failed with status %x\n", status);
 	}
 
+	struct ec_response_get_protocol_info info;
+	status = cros_ec_command(pDevice, EC_CMD_GET_PROTOCOL_INFO, 0, NULL, 0, &info, sizeof(info));
+	if (NT_SUCCESS(status)) {
+		pDevice->MaxOutsize = info.max_request_packet_size - sizeof(struct ec_host_request);
+		pDevice->MaxInsize = info.max_response_packet_size - sizeof(struct ec_host_response);
+
+		DebugLog("Max outsize: %d, Max insize: %d\n", pDevice->MaxOutsize, pDevice->MaxInsize);
+	}
+	else {
+		DebugLog("EC Command failed with status %x\n", status);
+	}
+
 	pDevice->DeviceReady = FALSE;
 	pDevice->FingerUp = TRUE;
 	pDevice->NextMode = FP_MODE_DEEPSLEEP;
@@ -540,6 +552,11 @@ CrosFPEvtIoDeviceControl(
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
 			"Requested get fp algorithms\n");
 		status = STATUS_NOT_SUPPORTED;
+		break;
+	case IOCTL_BIOMETRIC_VENDOR:
+		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
+			"Requested raw ec command\n");
+		status = CrosECIoctlXCmd(devContext, Request);
 		break;
 	default:
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,

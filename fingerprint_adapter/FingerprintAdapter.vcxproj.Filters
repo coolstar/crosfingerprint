@@ -33,6 +33,9 @@
     <ClCompile Include="StorageAdapter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="eccmd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FingerprintAdapter.rc">

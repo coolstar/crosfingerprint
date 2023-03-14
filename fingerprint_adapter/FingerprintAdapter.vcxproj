@@ -203,6 +203,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="apt-log.cpp" />
+    <ClCompile Include="eccmd.cpp" />
     <ClCompile Include="EngineAdapter.cpp">
       <AdditionalIncludeDirectories>;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreCompiledHeaderFile>precomp.h</PreCompiledHeaderFile>

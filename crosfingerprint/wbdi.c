@@ -140,7 +140,7 @@ NTSTATUS CalibrateSensor(
 		i++;
 	}
 	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
-		"Rebooted after %d iters\n", i);
+		"Ready after %d iters\n", i);
 	if (!devContext->DeviceCalibrated){
 		srand(GetTickCount());
 

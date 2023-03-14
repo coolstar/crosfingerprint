@@ -76,4 +76,6 @@ typedef struct _WINIBIO_ENGINE_CONTEXT {
 
 } WINIBIO_ENGINE_CONTEXT, *PWINIBIO_ENGINE_CONTEXT;
 
+HRESULT ec_command(HANDLE device, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
+
 void DebugLog(const char* format, ...);

@@ -77,5 +77,6 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
 
 } WINIBIO_STORAGE_CONTEXT, *PWINIBIO_STORAGE_CONTEXT;
 
+HRESULT ec_command(HANDLE device, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
 
 void DebugLog(const char* format, ...);

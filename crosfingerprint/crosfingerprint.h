@@ -38,11 +38,12 @@
 #define FP_MODE_ANY_WAIT_IRQ (FP_MODE_FINGER_DOWN | FP_MODE_ANY_CAPTURE)
 
 typedef struct _CROSEC_COMMAND {
-    UINT8 Version;
-    UINT16 Command;
-    UINT16 OutSize;
-    UINT16 InSize;
+    UINT32 Version;
+    UINT32 Command;
+    UINT32 OutSize;
+    UINT32 InSize;
     UINT32 Result;
+#pragma warning(disable:4200)
     UINT8 Data[];
 } CROSEC_COMMAND, * PCROSEC_COMMAND;
 
@@ -60,6 +61,13 @@ typedef struct _CROSFP_CONTEXT
     WDFREQUEST CurrentCapture;
     BOOLEAN    FingerUp;
     UINT32     NextMode;
+
+    UINT16     MaxOutsize;
+    UINT16     MaxInsize;
+
+    UINT32     TemplateSize;
+    UINT16     TemplateMax;
+    UINT16     ValidTemplates;
 
     BOOLEAN DeviceReady;
     BOOLEAN DeviceCalibrated;
@@ -89,13 +97,13 @@ EVT_WDFDEVICE_WDM_IRP_PREPROCESS CrosFPEvtWdmPreprocessMnQueryId;
 
 EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL CrosFPEvtIoDeviceControl;
 
+NTSTATUS CrosECIoctlXCmd(_In_ PCROSFP_CONTEXT pDevice, _In_ WDFREQUEST Request);
+
 NTSTATUS CrosFPSensorStatus
 (
     _In_ PCROSFP_CONTEXT devContext,
     PWINBIO_SENSOR_STATUS sensorMode
 );
-
-NTSTATUS CrosFPCheck(_In_ PCROSFP_CONTEXT devContext);
 
 NTSTATUS GetFingerprintAttributes(
     IN WDFREQUEST   Request
