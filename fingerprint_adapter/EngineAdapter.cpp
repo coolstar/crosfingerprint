@@ -41,6 +41,7 @@ NOTES:
 #include "winbio_adapter.h"
 #include "EngineAdapter.h"
 #include "../crosfingerprint/ec_commands.h"
+#include <stdlib.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -318,26 +319,6 @@ EngineAdapterAttach(
 
     Pipeline->EngineContext = newContext;
 
-    struct ec_response_fp_info info;
-    for (int tries = 1; tries <= 10; tries++) {
-        hr = ec_command(Pipeline, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
-        if (FAILED(hr)) {
-            Sleep(500);
-        }
-        else {
-            break;
-        }
-    }
-
-    if (FAILED(hr)) {
-        DebugLog("Failed to get FP info\n");
-        goto cleanup;
-    }
-
-    DebugLog("Max Templates: %d, Template Size: %d, Valid Templates: %d, Template Version: %d\n", info.template_max, info.template_size, info.template_valid, info.template_version);
-
-    newContext->MaxFingers = info.template_max;
-
 cleanup:
     return hr;
 }
@@ -453,7 +434,7 @@ EngineAdapterQueryIndexVectorSize(
     // be any positive value or zero. Return zero if your adapter does not support placing 
     // templates into buckets. That is, return zero if your adapter does not support index 
     // vectors.
-    *IndexElementCount = context->MaxFingers;
+    *IndexElementCount = 1;
 
 
 cleanup:
@@ -721,6 +702,17 @@ EngineAdapterIdentifyFeatureSet(
 
     DebugLog("[Engine] Got identity type %d\n", thisRecord.Identity->Type);
 
+    if (EC_MKBP_FP_ERRCODE(context->LastMKBPValue) == EC_MKBP_FP_ERR_MATCH_YES_UPDATED) {
+        DebugLog("[Engine] Need to update template %d\n", thisRecord.IndexVector[0]);
+
+        PUCHAR newBuffer;
+        if (SUCCEEDED(DownloadTemplate(Pipeline, &newBuffer, thisRecord.TemplateBlobSize, thisRecord.IndexVector[0]))) {
+            DebugLog("Success!\n");
+            RtlCopyMemory(thisRecord.TemplateBlob, newBuffer, thisRecord.TemplateBlobSize);
+            free(newBuffer);
+        }
+    }
+
     // Return information about the matching template to the caller.
     CopyMemory(Identity, thisRecord.Identity, sizeof(WINBIO_IDENTITY));
 
@@ -971,7 +963,8 @@ EngineAdapterCommitEnrollment(
 
     newTemplate.Identity = Identity;
     newTemplate.SubFactor = SubFactor;
-    newTemplate.IndexVector = 0;
+    newTemplate.IndexVector = NULL;
+    newTemplate.IndexElementCount = 0;
     newTemplate.TemplateBlob = NULL;
     newTemplate.TemplateBlobSize = 0;
     newTemplate.PayloadBlob = PayloadBlob;

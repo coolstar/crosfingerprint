@@ -804,9 +804,15 @@ StorageAdapterGetCurrentRecord(
 
     DebugLog("[Storage] Got identity type %d\n", record->Identity.Type);
 
+    ULONG index = Pipeline->StorageContext->DatabaseCursor;
+
     RtlZeroMemory(RecordContents, sizeof(*RecordContents));
     RecordContents->Identity = &record->Identity;
     RecordContents->SubFactor = record->SubFactor;
+    RecordContents->IndexVector = &index;
+    RecordContents->IndexElementCount = 1;
+    RecordContents->TemplateBlob = record->TemplateData;
+    RecordContents->TemplateBlobSize = record->TemplateSize;
 
 cleanup:
     return hr;

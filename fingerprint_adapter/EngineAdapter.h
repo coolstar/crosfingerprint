@@ -58,8 +58,6 @@ typedef struct _WINIBIO_ENGINE_CONTEXT {
     //                        of an in-progress enrollment operation.
     //
 
-    UINT32 MaxFingers;
-
     struct Enrollment {
         BOOLEAN InProgress;
         INT EnrollmentProgress;
