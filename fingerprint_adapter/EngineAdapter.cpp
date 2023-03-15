@@ -298,7 +298,7 @@ static HRESULT
 WINAPI
 EngineAdapterAttach(
     _Inout_ PWINBIO_PIPELINE Pipeline
-    )
+)
 {
     DebugLog("Called EngineAdapterAttach\n");
 
@@ -317,18 +317,43 @@ EngineAdapterAttach(
     }
 
     Pipeline->EngineContext = newContext;
-    Pipeline->EngineHandle = Pipeline->SensorHandle;
 
     DebugLog("Handles: sensor 0x%lx, engine 0x%lx, storage 0x%lx\n", Pipeline->SensorHandle, Pipeline->EngineHandle, Pipeline->StorageHandle);
 
+    struct ec_response_get_version r;
+    hr = ec_command(Pipeline->SensorHandle, EC_CMD_GET_VERSION, 0, NULL, 0, &r, sizeof(struct ec_response_get_version));
+
+    if (!FAILED(hr)) {
+        /* Ensure versions are null-terminated before we print them */
+        r.version_string_ro[sizeof(r.version_string_ro) - 1] = '\0';
+        r.version_string_rw[sizeof(r.version_string_rw) - 1] = '\0';
+
+        DebugLog("EC RO Version: %s\n", r.version_string_ro);
+        DebugLog("EC RW Version: %s\n", r.version_string_rw);
+    }
+    else {
+        DebugLog("Error: Could not get version\n");
+    }
+
     struct ec_response_fp_info info;
-    hr = ec_command(Pipeline->EngineHandle, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(info));
+    for (int tries = 1; tries <= 10; tries++) {
+        hr = ec_command(Pipeline->SensorHandle, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
+        if (FAILED(hr)) {
+            Sleep(500);
+            DebugLog("Failed to get FP info; Retrying (%d of 10)...\n", tries);
+        }
+        else {
+            break;
+        }
+    }
+
     if (FAILED(hr)) {
-        DebugLog("Failed to get FP info\n");
         goto cleanup;
     }
 
-    DebugLog("Max Templates: %d, Template Size: %d\n", info.template_max, info.template_size);
+    DebugLog("Max Templates: %d, Template Size: %d, Valid Templates: %d, Template Version: %d\n", info.template_max, info.template_size, info.template_valid, info.template_version);
+
+    newContext->MaxFingers = info.template_max;
 
 cleanup:
     return hr;
@@ -422,11 +447,15 @@ EngineAdapterQueryIndexVectorSize(
         goto cleanup;
     }
 
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
     // Specify the number of index vector elements supported by your adapter. This can
     // be any positive value or zero. Return zero if your adapter does not support placing 
     // templates into buckets. That is, return zero if your adapter does not support index 
     // vectors.
-    *IndexElementCount = 5;
+    *IndexElementCount = context->MaxFingers;
 
 
 cleanup:
@@ -660,7 +689,14 @@ EngineAdapterIdentifyFeatureSet(
     DebugLog("Match Index: %d\n", matchIdx);
 
     if (matchIdx == (EC_MKBP_FP_MATCH_IDX_MASK >> EC_MKBP_FP_MATCH_IDX_OFFSET)) {
-        hr = WINBIO_E_UNKNOWN_ID;
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+        DebugLog("Invalid Finger\n", matchIdx);
+        goto cleanup;
+    }
+
+    if (matchIdx >= recordCount) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+        DebugLog("Finger not in database??\n", matchIdx);
         goto cleanup;
     }
 
@@ -683,8 +719,11 @@ EngineAdapterIdentifyFeatureSet(
     hr = WbioStorageGetCurrentRecord(Pipeline, &thisRecord);
     if (FAILED(hr))
     {
+        DebugLog("[Engine] Failed to get record\n");
         goto cleanup;
     }
+
+    DebugLog("[Engine] Got identity type %d\n", thisRecord.Identity->Type);
 
     // Return information about the matching template to the caller.
     CopyMemory(Identity, thisRecord.Identity, sizeof(WINBIO_IDENTITY));
@@ -698,6 +737,7 @@ cleanup:
     {
         hr = WINBIO_E_UNKNOWN_ID;
     }
+    DebugLog("[Engine] Returning match result 0x%x\n", hr);
     return hr;
 }
 //-----------------------------------------------------------------------------

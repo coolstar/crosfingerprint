@@ -84,17 +84,17 @@ HKR,WinBio\Configurations\0,SystemSensor,0x10001,1                              
 HKR,WinBio\Configurations\0,SensorAdapterBinary,,"FingerprintAdapter.DLL"		; Vendor Engine
 HKR,WinBio\Configurations\0,EngineAdapterBinary,,"FingerprintAdapter.DLL"       ; Vendor engine
 HKR,WinBio\Configurations\0,StorageAdapterBinary,,"FingerprintAdapter.DLL"    ; Windows built-in storage adapter - see StorageAdapter.dll for sample vendor adapter
-HKR,WinBio\Configurations\0,DatabaseId,,"6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50"  ; Unique database GUID
+HKR,WinBio\Configurations\0,DatabaseId,,"B50D01D8-C2B1-11ED-A508-00155DDCFFEC"  ; Unique database GUID
 
 [DatabaseAddReg]
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},BiometricType,0x00010001,0x00000008
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},Attributes,0x00010001,0x00000001
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},Format,,"00000000-0000-0000-0000-000000000000"
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},InitialSize,0x00010001,0x00000020
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},AutoCreate,0x00010001,0x00000001
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},AutoName,0x00010001,0x00000001
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},FilePath,,""
-HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{6E9D4C5A-55B4-4c52-90B7-DDDC75CA4D50},ConnectionString,,""
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},BiometricType,0x00010001,0x00000008
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},Attributes,0x00010001,0x00000001
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},Format,,"00000000-0000-0000-0000-000000000000"
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},InitialSize,0x00010001,0x00000020
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},AutoCreate,0x00010001,0x00000001
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},AutoName,0x00010001,0x00000001
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},FilePath,,""
+HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},ConnectionString,,""
 
 [CoInstallers_AddReg]
 HKR,,CoInstallers32,0x00010000,"WUDFCoinstaller.dll"

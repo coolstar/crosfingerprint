@@ -72,6 +72,8 @@ typedef struct _WINIBIO_ENGINE_CONTEXT {
         INT EnrollmentProgress;
     } Enrollment;
 
+    UINT32 MaxFingers;
+
     UINT32 LastMKBPValue;
 
 } WINIBIO_ENGINE_CONTEXT, *PWINIBIO_ENGINE_CONTEXT;

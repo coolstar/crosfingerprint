@@ -40,6 +40,7 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "StorageAdapter.h"
+#include "../crosfingerprint/ec_commands.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -284,6 +285,42 @@ StorageAdapterAttach(
 
     Pipeline->StorageContext = newContext;
 
+    struct ec_response_get_version r;
+    hr = ec_command(Pipeline->SensorHandle, EC_CMD_GET_VERSION, 0, NULL, 0, &r, sizeof(struct ec_response_get_version));
+
+    if (!FAILED(hr)) {
+        /* Ensure versions are null-terminated before we print them */
+        r.version_string_ro[sizeof(r.version_string_ro) - 1] = '\0';
+        r.version_string_rw[sizeof(r.version_string_rw) - 1] = '\0';
+
+        DebugLog("EC RO Version: %s\n", r.version_string_ro);
+        DebugLog("EC RW Version: %s\n", r.version_string_rw);
+    }
+    else {
+        DebugLog("Error: Could not get version\n");
+    }
+
+    struct ec_response_fp_info info;
+    for (int tries = 1; tries <= 10; tries++) {
+        hr = ec_command(Pipeline->SensorHandle, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
+        if (FAILED(hr)) {
+            Sleep(500);
+            DebugLog("Failed to get FP info; Retrying (%d of 10)...\n", tries);
+        }
+        else {
+            break;
+        }
+    }
+
+    if (FAILED(hr)) {
+        goto cleanup;
+    }
+
+    DebugLog("Max Templates: %d, Template Size: %d, Valid Templates: %d, Template Version: %d\n", info.template_max, info.template_size, info.template_valid, info.template_version);
+
+    newContext->MaxFingers = info.template_max;
+    newContext->TemplateSize = info.template_size;
+
     DebugLog("Handles: sensor 0x%lx, engine 0x%lx, storage 0x%lx\n", Pipeline->SensorHandle, Pipeline->EngineHandle, Pipeline->StorageHandle);
 
 cleanup:
@@ -462,6 +499,7 @@ StorageAdapterAddRecord(
     DebugLog("Called StorageAdapterAddRecord\n");
 
     HRESULT hr = S_OK;
+    CRFP_STORAGE_RECORD NewRecord = { 0 };
 
     // Verify that pointer arguments are not NULL.
     if (!ARGUMENT_PRESENT(Pipeline) ||
@@ -471,13 +509,14 @@ StorageAdapterAddRecord(
         goto cleanup;
     }
 
-    if (Pipeline->StorageContext->DatabaseCount) {
+    if (Pipeline->StorageContext->Database.size() == Pipeline->StorageContext->MaxFingers) {
         hr = WINBIO_E_DATABASE_FULL;
         goto cleanup;
     }
 
-    RtlCopyMemory(&Pipeline->StorageContext->Record, RecordContents, sizeof(*RecordContents));
-    Pipeline->StorageContext->DatabaseCount++;
+    RtlCopyMemory(&NewRecord.Identity, RecordContents->Identity, sizeof(NewRecord.Identity));
+    NewRecord.SubFactor = RecordContents->SubFactor;
+    Pipeline->StorageContext->Database.push_back(NewRecord);
 
 cleanup:
     return hr;
@@ -525,8 +564,104 @@ StorageAdapterQueryBySubject(
         goto cleanup;
     }
 
-    if (!Pipeline->StorageContext->DatabaseCount) {
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the pipeline state.
+    if (storageContext == NULL /*|| storageContext->FileHandle == INVALID_HANDLE_VALUE*/)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    // Verify the Identity argument.
+    if (Identity->Type != WINBIO_ID_TYPE_GUID &&
+        Identity->Type != WINBIO_ID_TYPE_SID &&
+        Identity->Type != WINBIO_ID_TYPE_WILDCARD)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    if (Identity->Type == WINBIO_ID_TYPE_WILDCARD &&
+        Identity->Value.Wildcard != WINBIO_IDENTITY_WILDCARD)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    // WINBIO_SUBTYPE_ANY is a valid sub-factor.
+    // WINBIO_SUBTYPE_NO_INFORMATION is not a valid sub-factor.
+    if (SubFactor == WINBIO_SUBTYPE_NO_INFORMATION)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    
+    if (storageContext->Database.empty()) {
         hr = WINBIO_E_DATABASE_NO_RESULTS;
+        goto cleanup;
+    }
+
+    DebugLog("Identity Type: %d, Subfactor: %d\n", Identity->Type, SubFactor);
+    if (Identity->Type == WINBIO_ID_TYPE_WILDCARD) {
+        hr = S_OK;
+        goto cleanup;
+    }
+
+    if (Identity->Type == WINBIO_ID_TYPE_GUID) {
+        DebugLog("GUID: {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
+            Identity->Value.TemplateGuid.Data1, Identity->Value.TemplateGuid.Data2, Identity->Value.TemplateGuid.Data3,
+            Identity->Value.TemplateGuid.Data4[0], Identity->Value.TemplateGuid.Data4[1], Identity->Value.TemplateGuid.Data4[2], Identity->Value.TemplateGuid.Data4[3],
+            Identity->Value.TemplateGuid.Data4[4], Identity->Value.TemplateGuid.Data4[5], Identity->Value.TemplateGuid.Data4[6], Identity->Value.TemplateGuid.Data4[7]);
+    }
+
+    if (Identity->Type == WINBIO_ID_TYPE_SID) {
+        DebugLog("Identity SID size %d: ", Identity->Value.AccountSid.Size);
+        for (int j = 0; j < max(Identity->Value.AccountSid.Size, sizeof(Identity->Value.AccountSid.Data)); j++) {
+            DebugLog("0x%x ", Identity->Value.AccountSid.Data[j]);
+        }
+        DebugLog("\n");
+    }
+
+    hr = WINBIO_E_DATABASE_NO_RESULTS;
+    for (int i = 0; i < storageContext->Database.size(); i++) {
+        CRFP_STORAGE_RECORD record = storageContext->Database[i];
+
+        DebugLog("Record %d: \n", i);
+
+        DebugLog("\tIdentity Type: %d, Subfactor: %d\n", record.Identity.Type, record.SubFactor);
+        if (record.Identity.Type == WINBIO_ID_TYPE_GUID) {
+            DebugLog("GUID: {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
+                record.Identity.Value.TemplateGuid.Data1, record.Identity.Value.TemplateGuid.Data2, record.Identity.Value.TemplateGuid.Data3,
+                record.Identity.Value.TemplateGuid.Data4[0], record.Identity.Value.TemplateGuid.Data4[1], record.Identity.Value.TemplateGuid.Data4[2], record.Identity.Value.TemplateGuid.Data4[3],
+                record.Identity.Value.TemplateGuid.Data4[4], record.Identity.Value.TemplateGuid.Data4[5], record.Identity.Value.TemplateGuid.Data4[6], record.Identity.Value.TemplateGuid.Data4[7]);
+        }
+
+        if (record.Identity.Type == WINBIO_ID_TYPE_SID) {
+            DebugLog("\tIdentity SID size %d: ", record.Identity.Value.AccountSid.Size);
+            for (int j = 0; j < max(record.Identity.Value.AccountSid.Size, sizeof(record.Identity.Value.AccountSid.Data)); j++) {
+                DebugLog("0x%x ", record.Identity.Value.AccountSid.Data[j]);
+            }
+            DebugLog("\n"); 
+        }
+
+        if ((SubFactor == WINBIO_SUBTYPE_ANY || SubFactor == record.SubFactor) && 
+            Identity->Type == record.Identity.Type) {
+            if (record.Identity.Type == WINBIO_ID_TYPE_GUID &&
+                (memcmp(&Identity->Value.TemplateGuid, &record.Identity.Value.TemplateGuid, sizeof(Identity->Value.TemplateGuid)) == 0)) {
+                hr = S_OK;
+                break;
+            }
+            else if (record.Identity.Type == WINBIO_ID_TYPE_SID &&
+                Identity->Value.AccountSid.Size == record.Identity.Value.AccountSid.Size &&
+                Identity->Value.AccountSid.Size <= sizeof(Identity->Value.AccountSid.Data) &&
+                (memcmp(Identity->Value.AccountSid.Data, record.Identity.Value.AccountSid.Data, Identity->Value.AccountSid.Size) == 0)){
+                hr = S_OK;
+                break;
+            }
+        }
     }
 
 cleanup:
@@ -573,7 +708,7 @@ StorageAdapterGetRecordCount(
         goto cleanup;
     }
 
-    *RecordCount = Pipeline->StorageContext->DatabaseCount;
+    *RecordCount = Pipeline->StorageContext->Database.size();
 
 cleanup:
     return hr;
@@ -599,7 +734,7 @@ StorageAdapterFirstRecord(
 
     Pipeline->StorageContext->DatabaseCursor = 0;
 
-    if (!Pipeline->StorageContext->DatabaseCount) {
+    if (Pipeline->StorageContext->Database.empty()) {
         hr = WINBIO_E_DATABASE_NO_RESULTS;
     }
 
@@ -625,9 +760,9 @@ StorageAdapterNextRecord(
         goto cleanup;
     }
 
-    if (!Pipeline->StorageContext->DatabaseCount) {
+    if (Pipeline->StorageContext->Database.empty()) {
         hr = WINBIO_E_DATABASE_NO_RESULTS;
-    } else if (Pipeline->StorageContext->DatabaseCursor >= Pipeline->StorageContext->DatabaseCount) {
+    } else if (Pipeline->StorageContext->DatabaseCursor >= Pipeline->StorageContext->Database.size() - 1) {
         hr = WINBIO_E_DATABASE_NO_MORE_RECORDS;
     }
     else {
@@ -657,12 +792,22 @@ StorageAdapterGetCurrentRecord(
         goto cleanup;
     }
 
-    if (!Pipeline->StorageContext->DatabaseCount) {
+    if (Pipeline->StorageContext->Database.empty()) {
         hr = WINBIO_E_DATABASE_NO_RESULTS;
         goto cleanup;
     }
 
-    RtlCopyMemory(RecordContents, &Pipeline->StorageContext->Record, sizeof(*RecordContents));
+    if (Pipeline->StorageContext->DatabaseCursor > Pipeline->StorageContext->Database.size()) {
+        Pipeline->StorageContext->DatabaseCursor = Pipeline->StorageContext->Database.size() - 1;
+    }
+
+    PCRFP_STORAGE_RECORD record = &Pipeline->StorageContext->Database[Pipeline->StorageContext->DatabaseCursor];
+
+    DebugLog("[Storage] Got identity type %d\n", record->Identity.Type);
+
+    RtlZeroMemory(RecordContents, sizeof(*RecordContents));
+    RecordContents->Identity = &record->Identity;
+    RecordContents->SubFactor = record->SubFactor;
 
 cleanup:
     return hr;

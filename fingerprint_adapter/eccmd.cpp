@@ -45,5 +45,11 @@ HRESULT ec_command(HANDLE device, int cmd, int version, const void* outdata, int
     }
 
     RtlCopyMemory(indata, cmdStruct->Data, insize);
+
+    DebugLog("Result: %d\n", cmdStruct->Result);
+    if (cmdStruct->Result != 0) {
+        return -cmdStruct->Result;
+    }
+
     return S_OK;
 }
