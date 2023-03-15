@@ -710,6 +710,15 @@ EngineAdapterIdentifyFeatureSet(
             DebugLog("Success!\n");
             RtlCopyMemory(thisRecord.TemplateBlob, newBuffer, thisRecord.TemplateBlobSize);
             free(newBuffer);
+
+            SIZE_T ReceivedSz;
+            ULONG Status;
+            WbioStorageControlUnit(Pipeline,
+                StorageControlCodeSaveToDisk,
+                NULL, 0,
+                NULL, 0,
+                &ReceivedSz,
+                &Status);
         }
     }
 

@@ -517,6 +517,19 @@ StorageAdapterAddRecord(
 
     storageContext->Database.push_back(NewRecord);
 
+    SIZE_T ReceivedSz;
+    ULONG Status;
+    hr = WbioStorageControlUnit(Pipeline,
+        StorageControlCodeSaveToDisk,
+        NULL, 0,
+        NULL, 0,
+        &ReceivedSz,
+        &Status);
+    if (FAILED(hr)) {
+        hr = WINBIO_E_DATABASE_WRITE_ERROR;
+        goto cleanup;
+    }
+
 cleanup:
     return hr;
 }
@@ -832,18 +845,53 @@ StorageAdapterControlUnit(
     _Out_ PULONG OperationStatus
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(ControlCode);
     UNREFERENCED_PARAMETER(SendBuffer);
     UNREFERENCED_PARAMETER(SendBufferSize);
     UNREFERENCED_PARAMETER(ReceiveBuffer);
     UNREFERENCED_PARAMETER(ReceiveBufferSize);
-    UNREFERENCED_PARAMETER(ReceiveDataSize);
-    UNREFERENCED_PARAMETER(OperationStatus);
 
     DebugLog("Called StorageAdapterControlUnit\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+    BOOL result = TRUE;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(ReceiveDataSize) ||
+        !ARGUMENT_PRESENT(OperationStatus))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext =
+        (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the state of the pipeline.
+    if (storageContext == NULL /* ||
+        Pipeline->StorageHandle == INVALID_HANDLE_VALUE*/)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    switch (ControlCode) {
+    case StorageControlCodeUploadToHw:
+        DebugLog("TODO: Upload to Hardware\n");
+        hr = S_OK;
+        break;
+    case StorageControlCodeSaveToDisk:
+        DebugLog("TODO: Save to disk\n");
+        hr = S_OK;
+        break;
+    default:
+        hr = WINBIO_E_INVALID_CONTROL_CODE;
+        break;
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
