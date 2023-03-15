@@ -68,7 +68,3 @@ typedef struct _WINIBIO_ENGINE_CONTEXT {
     UINT32 LastMKBPValue;
 
 } WINIBIO_ENGINE_CONTEXT, *PWINIBIO_ENGINE_CONTEXT;
-
-HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
-
-void DebugLog(const char* format, ...);

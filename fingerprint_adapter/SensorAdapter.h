@@ -55,6 +55,3 @@ typedef struct _WINIBIO_SENSOR_CONTEXT {
     OVERLAPPED Overlapped;
     CRFP_CAPTURE_DATA CaptureData;
 } WINIBIO_SENSOR_CONTEXT, *PWINIBIO_SENSOR_CONTEXT;
-
-
-void DebugLog(const char* format, ...);

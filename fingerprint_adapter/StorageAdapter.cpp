@@ -491,14 +491,31 @@ StorageAdapterAddRecord(
         goto cleanup;
     }
 
-    if (Pipeline->StorageContext->Database.size() == Pipeline->StorageContext->MaxFingers) {
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the pipeline state.
+    if (storageContext == NULL /*|| storageContext->FileHandle == INVALID_HANDLE_VALUE*/)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    if (storageContext->Database.size() == storageContext->MaxFingers) {
         hr = WINBIO_E_DATABASE_FULL;
         goto cleanup;
     }
 
     RtlCopyMemory(&NewRecord.Identity, RecordContents->Identity, sizeof(NewRecord.Identity));
     NewRecord.SubFactor = RecordContents->SubFactor;
-    Pipeline->StorageContext->Database.push_back(NewRecord);
+
+    NewRecord.TemplateSize = storageContext->TemplateSize;
+    hr = DownloadTemplate(Pipeline, &NewRecord.TemplateData, storageContext->TemplateSize, storageContext->Database.size());
+    if (FAILED(hr)) {
+        goto cleanup;
+    }
+
+    storageContext->Database.push_back(NewRecord);
 
 cleanup:
     return hr;

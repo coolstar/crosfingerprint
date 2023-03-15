@@ -4,8 +4,7 @@
 
 #include <winioctl.h>
 #include <winbio_ioctl.h>
-
-void DebugLog(const char* format, ...);
+#include "../crosfingerprint/ec_commands.h"
 
 typedef struct _CROSEC_COMMAND {
     UINT32 Version;
@@ -54,10 +53,76 @@ HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* 
 
     RtlCopyMemory(indata, cmdStruct->Data, insize);
 
-    DebugLog("Result: %d\n", cmdStruct->Result);
     if (cmdStruct->Result != 0) {
         return -cmdStruct->Result;
     }
 
     return S_OK;
+}
+
+HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 templateSize, int idx) {
+    if (!Pipeline ||
+        !outBuffer) {
+        return E_POINTER;
+    }
+
+    *outBuffer = NULL;
+
+    struct ec_response_get_protocol_info info;
+    HRESULT hr = ec_command(Pipeline, EC_CMD_GET_PROTOCOL_INFO, 0, NULL, 0, &info, sizeof(info));
+    if (FAILED(hr)) {
+        DebugLog("Failed to get Protocol Info\n");
+        return hr;
+    }
+
+    UINT32 ec_max_outsize = info.max_request_packet_size - sizeof(struct ec_host_request);
+    UINT32 ec_max_insize = info.max_response_packet_size - sizeof(struct ec_host_response);
+    const int max_attempts = 3;
+    int num_attempts;
+
+    PUCHAR buffer = (PUCHAR)malloc(templateSize);
+    if (!buffer) {
+        DebugLog("Failed to allocate buffer!\n");
+        return WINBIO_E_DATABASE_WRITE_ERROR;
+    }
+
+    DebugLog("Downloading fingerprint template %d: %d bytes\n", idx, templateSize);
+
+    UINT32 stride, size;
+    size = templateSize;
+    struct ec_params_fp_frame p;
+    PUCHAR ptr = buffer;
+    p.offset = (idx + 1) << FP_FRAME_INDEX_SHIFT;
+
+    while (size) {
+        stride = min(ec_max_insize, size);
+        DebugLog("Downloading (%d bytes in stride)... ", stride);
+        p.size = stride;
+        num_attempts = 0;
+        while (num_attempts < max_attempts) {
+            num_attempts++;
+            hr = ec_command(Pipeline, EC_CMD_FP_FRAME, 0, &p, sizeof(p), ptr, stride);
+            if (SUCCEEDED(hr)) {
+                DebugLog("success\n");
+                break;
+            }
+            else if (hr == -EC_RES_ACCESS_DENIED) {
+                DebugLog("access denied\n");
+                break;
+            }
+            Sleep(100);
+        }
+        if (FAILED(hr)) {
+            DebugLog("failed\n");
+            free(buffer);
+            return hr;
+        }
+        p.offset += stride;
+        size -= stride;
+        ptr += stride;
+    }
+
+    DebugLog("Download success!\n");
+    *outBuffer = buffer;
+    return hr;
 }

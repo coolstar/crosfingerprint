@@ -39,6 +39,9 @@ NOTES:
 typedef struct _CRFP_STORAGE_RECORD {
     WINBIO_IDENTITY Identity;
     WINBIO_BIOMETRIC_SUBTYPE SubFactor;
+
+    UINT32 TemplateSize;
+    PUCHAR TemplateData;
 } CRFP_STORAGE_RECORD, *PCRFP_STORAGE_RECORD;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,7 +87,3 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
     std::vector<CRFP_STORAGE_RECORD> Database;
 
 } WINIBIO_STORAGE_CONTEXT, *PWINIBIO_STORAGE_CONTEXT;
-
-HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
-
-void DebugLog(const char* format, ...);

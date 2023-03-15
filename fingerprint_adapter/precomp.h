@@ -60,3 +60,9 @@ NOTES:
 #ifndef ARGUMENT_PRESENT
 #define ARGUMENT_PRESENT(x) ((x) != NULL)
 #endif
+
+void DebugLog(const char* format, ...);
+
+#include "winbio_adapter.h"
+HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
+HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR* outBuffer, UINT32 templateSize, int idx);

@@ -46,7 +46,7 @@
 #define EC_SPI_RECOVERY_TIME_NS	(200 * 1000)
 
 
-static ULONG CrosFPDebugLevel = 0;
+static ULONG CrosFPDebugLevel = 100;
 static ULONG CrosFPDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
 
 NTSTATUS cros_ec_pkt_xfer_spi(
