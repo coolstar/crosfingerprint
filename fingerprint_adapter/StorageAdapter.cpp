@@ -287,7 +287,7 @@ StorageAdapterAttach(
     struct ec_response_fp_info info;
     for (int tries = 1; tries <= 10; tries++) {
         hr = ec_command(Pipeline, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
-        if (FAILED(hr)) {
+        if (hr != 0) {
             Sleep(500);
         }
         else {
@@ -295,8 +295,9 @@ StorageAdapterAttach(
         }
     }
 
-    if (FAILED(hr)) {
+    if (hr != 0) {
         DebugLog("Failed to get FP info\n");
+        hr = WINBIO_E_DEVICE_FAILURE;
         goto cleanup;
     }
 

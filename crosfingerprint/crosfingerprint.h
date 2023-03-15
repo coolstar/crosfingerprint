@@ -66,6 +66,7 @@ typedef struct _CROSFP_CONTEXT
         SPB_CONTEXT SpbContext;
         UART_CONTEXT UartContext;
     };
+    UINT64 LastTransferTick;
 
 	WDFINTERRUPT Interrupt;
     WDFREQUEST CurrentCapture;

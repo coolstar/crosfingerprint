@@ -36,6 +36,7 @@ HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* 
     cmdStruct->Result = 0xff;
 
     RtlCopyMemory(cmdStruct->Data, outdata, outsize);
+    RtlZeroMemory(indata, insize);
 
     size_t ret = 0;
     ULONG error;
@@ -52,11 +53,12 @@ HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* 
         return HRESULT_FROM_WIN32(error);
     }
 
-    RtlCopyMemory(indata, cmdStruct->Data, insize);
-
     if (cmdStruct->Result != 0) {
+        DebugLog("Bad result from EC: %d\n", cmdStruct->Result);
         return -cmdStruct->Result;
     }
+
+    RtlCopyMemory(indata, cmdStruct->Data, insize);
 
     return S_OK;
 }

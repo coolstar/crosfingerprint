@@ -77,6 +77,11 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
         PCRFP_STORAGE_RECORD record = &newDatabase[i];
 
         record->TemplateData = (PUCHAR)malloc(record->TemplateSize);
+        if (!record->TemplateData) {
+            hr = WINBIO_E_DATABASE_READ_ERROR;
+            goto cleanup;
+        }
+
         if (!ReadFile(Pipeline->StorageHandle, record->TemplateData,
             record->TemplateSize,
             &bytesRead, NULL) || bytesRead != record->TemplateSize) {
@@ -85,8 +90,8 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
             goto cleanup;
         }
 
-        /*struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)record->TemplateData;
-        DebugLog("Template version: %d\n", metadata->struct_version);*/
+        struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)record->TemplateData;
+        DebugLog("Template version: %d\n", metadata->struct_version);
     }
 
 cleanup:
@@ -171,6 +176,9 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
     for (i = 0; i < fileHeader.RecordsCount; i++) {
         DebugLog("Saving template for record %d\n", i);
         PCRFP_STORAGE_RECORD record = &storageContext->Database[i];
+
+        struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)record->TemplateData;
+        DebugLog("Template version: %d\n", metadata->struct_version);
 
         if (!WriteFile(Pipeline->StorageHandle, record->TemplateData,
             record->TemplateSize,
@@ -263,22 +271,47 @@ HRESULT SyncDatabaseToMCU(PWINBIO_PIPELINE Pipeline) {
         return hr;
     }
 
-    hr = ResetFPContext(Pipeline);
-    if (FAILED(hr)) {
-        DebugLog("FP Context reset failed\n");
-        return hr;
-    }
-
-    for (int i = 0; i < storageContext->Database.size(); i++) {
-        CRFP_STORAGE_RECORD record = storageContext->Database[i];
-        hr = UploadTemplate(Pipeline, record.TemplateData, record.TemplateSize);
+    for (int retries = 0; retries < 10; retries++) {
+        DebugLog("Uploading (attempt %d)\n", retries + 1);
+        hr = ResetFPContext(Pipeline);
         if (FAILED(hr)) {
-            DebugLog("Failed to upload template %d\n", i);
-            goto cleanup;
+            DebugLog("FP Context reset failed\n");
+            continue;
+        }
+
+        for (int i = 0; i < storageContext->Database.size(); i++) {
+            CRFP_STORAGE_RECORD record = storageContext->Database[i];
+            for (int entry_retries = 0; entry_retries < 10; entry_retries++) {
+                DebugLog("\tUploading entry %d (attempt %d)\n", i, entry_retries + 1);
+                hr = UploadTemplate(Pipeline, record.TemplateData, record.TemplateSize);
+                if (FAILED(hr)) {
+                    DebugLog("Failed to upload template %d\n", i);
+                }
+                if (SUCCEEDED(hr)) {
+                    break;
+                }
+            }
+        }
+
+        if (SUCCEEDED(hr)) {
+            struct ec_response_fp_info info;
+            for (int tries = 1; tries <= 10; tries++) {
+                hr = ec_command(Pipeline, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
+                if (hr != 0) {
+                    Sleep(500);
+                }
+                else {
+                    break;
+                }
+            }
+
+            DebugLog("Max Templates: %d, Valid Templates: %d\n", info.template_max, info.template_valid);
+
+            if (info.template_valid == storageContext->Database.size())
+                break;
         }
     }
 
-cleanup:
     /*if (FAILED(hr)) {
         DebugLog("EC Console:\n\n=======================================\n");
         PrintConsole(Pipeline);
