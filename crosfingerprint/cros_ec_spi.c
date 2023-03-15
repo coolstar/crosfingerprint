@@ -72,6 +72,10 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 
 	WdfWaitLockAcquire(pDevice->IoLock, NULL);
 
+	if (GetTickCount64() == pDevice->LastTransferTick) {
+		Sleep(1);
+	}
+
 	status = SpbLockController(&pDevice->SpbContext);
 	if (!NT_SUCCESS(status)) {
 		goto out;
@@ -100,15 +104,6 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 		request->checksum = -csum;
 	}
 
-	status = SpbWriteDataSynchronously(&pDevice->SpbContext, NULL, 0);
-	if (!NT_SUCCESS(status)) {
-		CrosFPPrint(
-			DEBUG_LEVEL_ERROR,
-			DBG_IOCTL,
-			"Error waking up SPI: %x\n", status);
-		goto out;
-	}
-
 	status = SpbWriteDataSynchronously(&pDevice->SpbContext, dout, dout_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
@@ -118,7 +113,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 		goto out;
 	}
 
-	DWORD Timeout = GetTickCount() + EC_MSG_DEADLINE_MS;
+	ULONGLONG Timeout = GetTickCount64() + EC_MSG_DEADLINE_MS;
 	while (TRUE) {
 		UINT8 byte = 0;
 		status = SpbReadDataSynchronously(&pDevice->SpbContext, &byte, sizeof(byte));
@@ -126,7 +121,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 			break;
 		}
 
-		if (GetTickCount() > Timeout) {
+		if (GetTickCount64() > Timeout) {
 			status = STATUS_IO_TIMEOUT;
 			break;
 		}
@@ -198,6 +193,9 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 out:
 	if (controllerLocked)
 		SpbUnlockController(&pDevice->SpbContext);
+
+
+	pDevice->LastTransferTick = GetTickCount64();
 
 	WdfWaitLockRelease(pDevice->IoLock);
 
