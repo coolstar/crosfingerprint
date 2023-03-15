@@ -561,13 +561,36 @@ StorageAdapterGetDatabaseSize(
     _Out_ PSIZE_T TotalRecordCount
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(AvailableRecordCount);
-    UNREFERENCED_PARAMETER(TotalRecordCount);
-
     DebugLog("Called StorageAdapterGetDatabaseSize\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(AvailableRecordCount) ||
+        !ARGUMENT_PRESENT(TotalRecordCount))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext =
+        (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the pipeline state.
+    if (storageContext == NULL ||
+        Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    *TotalRecordCount = storageContext->Database.size();
+    *AvailableRecordCount = storageContext->MaxFingers - *TotalRecordCount;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
