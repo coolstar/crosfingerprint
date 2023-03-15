@@ -26,7 +26,7 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
 
     CRFP_DATABASE_FILE_HEADER fileHeader;
     std::vector<CRFP_STORAGE_RECORD> newDatabase;
-    int i;
+    UINT32 i;
     DWORD bytesRead;
 
     if (!ReadFile(Pipeline->StorageHandle,
@@ -84,6 +84,9 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
             DebugLog("Error loading template 0x%x\n", hr);
             goto cleanup;
         }
+
+        /*struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)record->TemplateData;
+        DebugLog("Template version: %d\n", metadata->struct_version);*/
     }
 
 cleanup:
@@ -123,7 +126,7 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
 
     CRFP_DATABASE_FILE_HEADER fileHeader;
     DWORD bytesRead;
-    int i;
+    UINT32 i;
     if (SetFilePointer(Pipeline->StorageHandle,
         0,
         NULL,
@@ -133,7 +136,7 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
     }
 
     fileHeader.FileMagic = CRFP_DB_MAGIC;
-    fileHeader.RecordsCount = storageContext->Database.size();
+    fileHeader.RecordsCount = (UINT32)storageContext->Database.size();
     fileHeader.RecordSize = sizeof(CRFP_STORAGE_RECORD);
     fileHeader.TemplateSize = storageContext->TemplateSize;
 

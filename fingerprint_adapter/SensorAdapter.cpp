@@ -40,7 +40,6 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "SensorAdapter.h"
-#include "../crosfingerprint/ec_commands.h"
 
 #include <winioctl.h>
 #include <winbio_types.h>
@@ -385,11 +384,58 @@ SensorAdapterReset(
     _Inout_ PWINBIO_PIPELINE Pipeline
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
 
     DebugLog("Called SensorAdapterReset\n");
 
-    return E_NOTIMPL;
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        DebugLog("SensorAdapterReset No Pointer!\n");
+        return E_POINTER;
+    }
+
+    DWORD BytesReturned;
+
+    WINBIO_DIAGNOSTICS Diag = { 0 };
+    if (!DeviceIoControl(Pipeline->SensorHandle,
+        IOCTL_BIOMETRIC_GET_SENSOR_STATUS,
+        NULL,
+        0,
+        &Diag,
+        sizeof(WINBIO_DIAGNOSTICS),
+        &BytesReturned,
+        NULL)) {
+        DWORD LastError = GetLastError();
+        DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
+        return HRESULT_FROM_WIN32(LastError);
+    }
+    if (FAILED(Diag.WinBioHresult)) {
+        DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS errored 0x%x\n", Diag.WinBioHresult);
+        return Diag.WinBioHresult;
+    }
+
+    if ((Diag.SensorStatus & WINBIO_SENSOR_NOT_CALIBRATED) == WINBIO_SENSOR_NOT_CALIBRATED) {
+        WINBIO_CALIBRATION_INFO Calib = { 0 };
+
+        if (!DeviceIoControl(Pipeline->SensorHandle,
+            IOCTL_BIOMETRIC_CALIBRATE,
+            NULL,
+            0,
+            &Calib,
+            sizeof(WINBIO_CALIBRATION_INFO),
+            &BytesReturned,
+            NULL)) {
+            DWORD LastError = GetLastError();
+            DebugLog("IOCTL_BIOMETRIC_CALIBRATE failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
+            return HRESULT_FROM_WIN32(LastError);
+        }
+        if (FAILED(Calib.WinBioHresult)) {
+            DebugLog("IOCTL_BIOMETRIC_CALIBRATE errored 0x%x\n", Calib.WinBioHresult);
+            return Calib.WinBioHresult;
+        }
+    }
+
+    return S_OK;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -483,46 +529,14 @@ SensorAdapterStartCapture(
 
     *Overlapped = &sensorContext->Overlapped;
 
+    //Check Calibrate
+
+    HRESULT hr = SensorAdapterReset(Pipeline);
+    if (FAILED(hr)) {
+        return hr;
+    }
+
     DWORD BytesReturned;
-
-    WINBIO_DIAGNOSTICS Diag = { 0 };
-    if (!DeviceIoControl(Pipeline->SensorHandle,
-        IOCTL_BIOMETRIC_GET_SENSOR_STATUS,
-        NULL,
-        0,
-        &Diag,
-        sizeof(WINBIO_DIAGNOSTICS),
-        &BytesReturned,
-        NULL)) {
-        DWORD LastError = GetLastError();
-        DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-        return HRESULT_FROM_WIN32(LastError);
-    }
-    if (FAILED(Diag.WinBioHresult)) {
-        DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS errored 0x%x\n", Diag.WinBioHresult);
-        return Diag.WinBioHresult;
-    }
-
-    if ((Diag.SensorStatus & WINBIO_SENSOR_NOT_CALIBRATED) == WINBIO_SENSOR_NOT_CALIBRATED) {
-        WINBIO_CALIBRATION_INFO Calib = { 0 };
-
-        if (!DeviceIoControl(Pipeline->SensorHandle,
-            IOCTL_BIOMETRIC_CALIBRATE,
-            NULL,
-            0,
-            &Calib,
-            sizeof(WINBIO_CALIBRATION_INFO),
-            &BytesReturned,
-            NULL)) {
-            DWORD LastError = GetLastError();
-            DebugLog("IOCTL_BIOMETRIC_CALIBRATE failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-            return HRESULT_FROM_WIN32(LastError);
-        }
-        if (FAILED(Calib.WinBioHresult)) {
-            DebugLog("IOCTL_BIOMETRIC_CALIBRATE errored 0x%x\n", Calib.WinBioHresult);
-            return Calib.WinBioHresult;
-        }
-    }
 
     WINBIO_CAPTURE_PARAMETERS Parameters = { 0 };
     Parameters.PayloadSize = sizeof(WINBIO_CAPTURE_PARAMETERS);
@@ -793,9 +807,9 @@ SensorAdapterControlUnit(
     result = DeviceIoControl(Pipeline->SensorHandle,
         ControlCode,
         SendBuffer,
-        SendBufferSize,
+        (DWORD)SendBufferSize,
         ReceiveBuffer,
-        ReceiveBufferSize,
+        (DWORD)ReceiveBufferSize,
         (LPDWORD)ReceiveDataSize,
         NULL);
 

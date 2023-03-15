@@ -27,10 +27,10 @@ NTSTATUS cros_ec_pkt_xfer_uart(
 		struct ec_host_request *request = (struct ec_host_request *)dout;
 		request->struct_version = EC_HOST_REQUEST_VERSION;
 		request->checksum = 0;
-		request->command = msg->Command;
-		request->command_version = msg->Version;
+		request->command = (UINT16)msg->Command;
+		request->command_version = (UINT8)msg->Version;
 		request->reserved = 0;
-		request->data_len = msg->OutSize;
+		request->data_len = (UINT16)msg->OutSize;
 
 		UINT8 csum = 0;
 		for (int i = 0; i < sizeof(*request); i++) {
@@ -39,7 +39,7 @@ NTSTATUS cros_ec_pkt_xfer_uart(
 
 		/* Copy data and update checksum */
 		memcpy(dout + sizeof(*request), msg->Data, msg->OutSize);
-		for (int i = 0; i < msg->OutSize; i++)
+		for (UINT32 i = 0; i < msg->OutSize; i++)
 			csum += msg->Data[i];
 
 		request->checksum = -csum;

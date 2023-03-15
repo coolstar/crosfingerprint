@@ -40,7 +40,6 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "StorageAdapter.h"
-#include "../crosfingerprint/ec_commands.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -613,7 +612,7 @@ StorageAdapterAddRecord(
     NewRecord.SubFactor = RecordContents->SubFactor;
 
     NewRecord.TemplateSize = storageContext->TemplateSize;
-    hr = DownloadTemplate(Pipeline, &NewRecord.TemplateData, storageContext->TemplateSize, storageContext->Database.size());
+    hr = DownloadTemplate(Pipeline, &NewRecord.TemplateData, storageContext->TemplateSize, (int)storageContext->Database.size());
     if (FAILED(hr)) {
         goto cleanup;
     }
@@ -653,6 +652,7 @@ StorageAdapterDeleteRecord(
     DebugLog("Called StorageAdapterDeleteRecord. Identity Type %d\n", Identity->Type);
 
     HRESULT hr = S_OK;
+    std::vector<CRFP_STORAGE_RECORD>::iterator it;
 
     // Verify that pointer arguments are not NULL.
     if (!ARGUMENT_PRESENT(Pipeline))
@@ -695,7 +695,7 @@ StorageAdapterDeleteRecord(
         goto cleanup;
     }
 
-    auto it = storageContext->Database.begin();
+    it = storageContext->Database.begin();
     while (it != storageContext->Database.end()) {
         if (MatchSubject(Identity, SubFactor, *it)) {
             DebugLog("Matched for deletion!\n");
@@ -959,7 +959,7 @@ StorageAdapterGetCurrentRecord(
 
     DebugLog("[Storage] Got identity type %d\n", record->Identity.Type);
 
-    ULONG index = Pipeline->StorageContext->DatabaseCursor;
+    ULONG index = (ULONG)Pipeline->StorageContext->DatabaseCursor;
 
     RtlZeroMemory(RecordContents, sizeof(*RecordContents));
     RecordContents->Identity = &record->Identity;
@@ -995,7 +995,6 @@ StorageAdapterControlUnit(
     DebugLog("Called StorageAdapterControlUnit\n");
 
     HRESULT hr = S_OK;
-    BOOL result = TRUE;
 
     // Verify that pointer arguments are not NULL.
     if (!ARGUMENT_PRESENT(Pipeline) ||
@@ -1005,6 +1004,9 @@ StorageAdapterControlUnit(
         hr = E_POINTER;
         goto cleanup;
     }
+
+    *ReceiveDataSize = 0;
+    *OperationStatus = 0;
 
     // Retrieve the context from the pipeline.
     PWINIBIO_STORAGE_CONTEXT storageContext =

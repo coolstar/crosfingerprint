@@ -4,8 +4,8 @@
 
 #include <winioctl.h>
 #include <winbio_ioctl.h>
-#include "../crosfingerprint/ec_commands.h"
 
+#pragma warning(disable:4200)  // suppress nameless struct/union warning
 typedef struct _CROSEC_COMMAND {
     UINT32 Version;
     UINT32 Command;
@@ -14,6 +14,7 @@ typedef struct _CROSEC_COMMAND {
     UINT32 Result;
     UINT8 Data[];
 } CROSEC_COMMAND, * PCROSEC_COMMAND;
+#pragma warning(default:4200)
 
 HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize) {
     if (!Pipeline) {
@@ -75,7 +76,6 @@ HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 te
         return hr;
     }
 
-    UINT32 ec_max_outsize = info.max_request_packet_size - sizeof(struct ec_host_request);
     UINT32 ec_max_insize = info.max_response_packet_size - sizeof(struct ec_host_response);
     const int max_attempts = 3;
     int num_attempts;
@@ -121,6 +121,9 @@ HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 te
         size -= stride;
         ptr += stride;
     }
+
+    /*struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)buffer;
+    DebugLog("Template version: %d\n", metadata->struct_version);*/
 
     DebugLog("Download success!\n");
     *outBuffer = buffer;

@@ -37,6 +37,7 @@
     <DriverType />
     <PlatformToolset>WindowsApplicationForDrivers10.0</PlatformToolset>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <Driver_SpectreMitigation>Spectre</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetVersion>Windows10</TargetVersion>
@@ -45,6 +46,7 @@
     <DriverType />
     <PlatformToolset>WindowsApplicationForDrivers10.0</PlatformToolset>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <Driver_SpectreMitigation>Spectre</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetVersion>Windows10</TargetVersion>
@@ -53,6 +55,7 @@
     <DriverType />
     <PlatformToolset>WindowsApplicationForDrivers10.0</PlatformToolset>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <Driver_SpectreMitigation>Spectre</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetVersion>Windows10</TargetVersion>
@@ -61,6 +64,7 @@
     <DriverType />
     <PlatformToolset>WindowsApplicationForDrivers10.0</PlatformToolset>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <Driver_SpectreMitigation>Spectre</Driver_SpectreMitigation>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
@@ -134,8 +138,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Midl>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
@@ -152,8 +155,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Midl>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
@@ -170,8 +172,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Midl>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
@@ -187,8 +188,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Midl>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);_UNICODE;UNICODE</PreprocessorDefinitions>

@@ -243,7 +243,7 @@ UartWrite(
 		SpbContext->UartRequest,
 		&params);
 
-	WdfWaitLockRelease(SpbContext->UartLock, NULL);
+	WdfWaitLockRelease(SpbContext->UartLock);
 	return status;
 }
 
@@ -293,6 +293,6 @@ UartRead(
 		SpbContext->UartRequest,
 		&params);
 
-	WdfWaitLockRelease(SpbContext->UartLock, NULL);
+	WdfWaitLockRelease(SpbContext->UartLock);
 	return status;
 }

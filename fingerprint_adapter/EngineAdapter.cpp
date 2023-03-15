@@ -40,7 +40,6 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "EngineAdapter.h"
-#include "../crosfingerprint/ec_commands.h"
 #include <stdlib.h>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -518,7 +517,6 @@ EngineAdapterAcceptSampleData(
     DebugLog("Called EngineAdapterAcceptSampleData\n");
 
     HRESULT hr = S_OK;
-    PUCHAR featureSet = NULL;
 
     // Verify that pointer arguments are not NULL.
     if (!ARGUMENT_PRESENT(Pipeline) ||
@@ -706,7 +704,7 @@ EngineAdapterIdentifyFeatureSet(
         DebugLog("[Engine] Need to update template %d\n", thisRecord.IndexVector[0]);
 
         PUCHAR newBuffer;
-        if (SUCCEEDED(DownloadTemplate(Pipeline, &newBuffer, thisRecord.TemplateBlobSize, thisRecord.IndexVector[0]))) {
+        if (SUCCEEDED(DownloadTemplate(Pipeline, &newBuffer, (UINT32)thisRecord.TemplateBlobSize, thisRecord.IndexVector[0]))) {
             DebugLog("Success!\n");
             RtlCopyMemory(thisRecord.TemplateBlob, newBuffer, thisRecord.TemplateBlobSize);
             free(newBuffer);

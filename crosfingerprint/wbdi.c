@@ -142,15 +142,14 @@ NTSTATUS CalibrateSensor(
 	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 		"Ready after %d iters\n", i);
 	if (!devContext->DeviceCalibrated){
-		srand(GetTickCount());
 
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"Set Seed\n");
 
 		struct ec_params_fp_seed p;
 		p.struct_version = FP_TEMPLATE_FORMAT_VERSION;
-		for (int i = 0; i < FP_CONTEXT_TPM_BYTES; i++) {
-			p.seed[i] = rand() % 0xff;
+		for (int j = 0; j < FP_CONTEXT_TPM_BYTES; j++) {
+			p.seed[j] = j % 0xFF;
 		}
 		status = cros_ec_command(devContext, EC_CMD_FP_SEED, 0, &p, sizeof(p), NULL, 0);
 
@@ -183,7 +182,7 @@ CaptureFpData(
 	NTSTATUS status;
 	PWINBIO_CAPTURE_PARAMETERS CaptureParams;
 	PCRFP_CAPTURE_DATA CaptureData;
-	DWORD bufferSize;
+	size_t bufferSize;
 	status = WdfRequestRetrieveInputBuffer(Request, sizeof(WINBIO_CAPTURE_PARAMETERS), &CaptureParams, &bufferSize);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
@@ -289,6 +288,7 @@ void CancelFPRequest(
 		p.mode = FP_MODE_DEEPSLEEP;
 
 		NTSTATUS status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+		UNREFERENCED_PARAMETER(status);
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"Set deepsleep mode! 0x%x\n", status);
 	}
@@ -315,6 +315,7 @@ void CompleteFPRequest(
 
 			struct ec_response_fp_mode r;
 			NTSTATUS status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+			UNREFERENCED_PARAMETER(status);
 			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 				"Set mode to 0x%x (finger up): %x\n", p.mode, status);
 		}
@@ -330,7 +331,7 @@ void CompleteFPRequest(
 
 	PWINBIO_CAPTURE_PARAMETERS CaptureParams;
 	PCRFP_CAPTURE_DATA CaptureData;
-	DWORD bufferSize;
+	size_t bufferSize;
 	NTSTATUS status;
 
 	status = WdfRequestRetrieveInputBuffer(Request, sizeof(WINBIO_CAPTURE_PARAMETERS), &CaptureParams, &bufferSize);

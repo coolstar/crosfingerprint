@@ -61,10 +61,20 @@ NOTES:
 #define ARGUMENT_PRESENT(x) ((x) != NULL)
 #endif
 
+#if 0
 void DebugLog(const char* format, ...);
+#else
+#define DebugLog(x, ...)
+#endif
 
 #include "winbio_adapter.h"
+#pragma warning(disable:4200)  // suppress nameless struct/union warning
+#include "../crosfingerprint/ec_commands.h"
+#pragma warning(default:4200)
+
 HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
+//HRESULT PrintConsole(PWINBIO_PIPELINE Pipeline);
+
 HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR* outBuffer, UINT32 templateSize, int idx);
 
 HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline);

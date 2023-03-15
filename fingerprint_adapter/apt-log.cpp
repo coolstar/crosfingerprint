@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void DebugLog(const char* format, ...) {
+/*void DebugLog(const char* format, ...) {
 	HANDLE logFile = CreateFile(L"C:\\Windows\\Temp\\crfp-adp-log.txt",
 		FILE_APPEND_DATA,
 		0,
@@ -28,4 +28,4 @@ void DebugLog(const char* format, ...) {
 
 	free(logStor);
 	CloseHandle(logFile);
-}
+}*/

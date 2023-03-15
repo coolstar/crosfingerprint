@@ -165,7 +165,7 @@ NTSTATUS cros_ec_command(
 #define DBG_PNP   2
 #define DBG_IOCTL 4
 
-#if 1
+#if 0
 void DebugLog(const char* format, ...);
 #define CrosFPPrint(dbglevel, dbgcatagory, fmt, ...) {          \
     if (CrosFPDebugLevel <= dbglevel &&                         \
@@ -175,6 +175,7 @@ void DebugLog(const char* format, ...);
 	    }                                                           \
 }
 #else
+#define DebugLog(x, ...)
 #define CrosFPPrint(dbglevel, fmt, ...) {                       \
 }
 #endif

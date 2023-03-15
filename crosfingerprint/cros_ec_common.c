@@ -60,7 +60,7 @@ NTSTATUS cros_ec_command(
  * @param pmask		Destination for version mask; will be set to 0 on
  *			error.
  */
-static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, UINT8 cmd, UINT32* pmask) {
+static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, UINT16 cmd, UINT32* pmask) {
 	struct ec_params_get_cmd_versions_v1 pver_v1;
 	struct ec_params_get_cmd_versions pver;
 	struct ec_response_get_cmd_versions rver;
@@ -73,7 +73,7 @@ static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, UINT8 cmd, UIN
 		&rver, sizeof(rver));
 
 	if (!NT_SUCCESS(status)) {
-		pver.cmd = cmd;
+		pver.cmd = (UINT8)cmd;
 		status = cros_ec_command(pDevice, EC_CMD_GET_CMD_VERSIONS, 0, &pver, sizeof(pver),
 			&rver, sizeof(rver));
 	}
@@ -89,7 +89,7 @@ static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, UINT8 cmd, UIN
  * @param ver		Version to check
  * @return non-zero if command version supported; 0 if not.
  */
-BOOLEAN cros_ec_cmd_version_supported(PCROSFP_CONTEXT pDevice, int cmd, int ver)
+BOOLEAN cros_ec_cmd_version_supported(PCROSFP_CONTEXT pDevice, UINT16 cmd, UINT8 ver)
 {
 	uint32_t mask = 0;
 

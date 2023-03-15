@@ -377,12 +377,13 @@ Status
 
 --*/
 {
+	UNREFERENCED_PARAMETER(FxDevice);
 	UNREFERENCED_PARAMETER(FxPreviousState);
 
-	PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
+	//PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
 	NTSTATUS status = STATUS_SUCCESS;
 
-	return STATUS_SUCCESS;
+	return status;
 }
 
 NTSTATUS
@@ -395,7 +396,6 @@ CrosFPEvtDeviceAdd(
 	WDF_IO_QUEUE_CONFIG           queueConfig;
 	WDF_OBJECT_ATTRIBUTES         attributes;
 	WDFDEVICE                     device;
-	WDF_INTERRUPT_CONFIG		  interruptConfig;
 	PCROSFP_CONTEXT               devContext;
 
 	UNREFERENCED_PARAMETER(Driver);
