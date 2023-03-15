@@ -37,12 +37,22 @@ NOTES:
 #include <vector>
 
 typedef struct _CRFP_STORAGE_RECORD {
-    WINBIO_IDENTITY Identity;
-    WINBIO_BIOMETRIC_SUBTYPE SubFactor;
+    UINT32 StorageRecordSize;
 
     UINT32 TemplateSize;
     PUCHAR TemplateData;
+
+    WINBIO_IDENTITY Identity;
+    WINBIO_BIOMETRIC_SUBTYPE SubFactor;
 } CRFP_STORAGE_RECORD, *PCRFP_STORAGE_RECORD;
+
+typedef struct _CRFP_DATABASE_FILE_HEADER {
+    UINT32 FileMagic;
+    UINT32 RecordsCount;
+
+    //CRFP_STORAGE_RECORD Records[];
+    //PUCHAR Templates[];
+} CRFP_DATABASE_FILE_HEADER, *PCRFP_DATABASE_FILE_HEADER;
 
 ///////////////////////////////////////////////////////////////////////////////
 //

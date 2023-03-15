@@ -590,6 +590,8 @@ StorageAdapterAddRecord(
         goto cleanup;
     }
 
+    NewRecord.StorageRecordSize = sizeof(NewRecord);
+
     RtlCopyMemory(&NewRecord.Identity, RecordContents->Identity, sizeof(NewRecord.Identity));
     NewRecord.SubFactor = RecordContents->SubFactor;
 
