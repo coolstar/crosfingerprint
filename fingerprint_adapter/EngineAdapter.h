@@ -54,30 +54,21 @@ typedef struct _WINIBIO_ENGINE_CONTEXT {
     // The following fields illustrate the kind of information 
     // the Engine Adapter needs to keep in this structure:
     //
-    //      FeatureSet      - A processed description of a biometric
-    //                        sample.
-    //
     //      Enrollment      - An object that tracks the current state
     //                        of an in-progress enrollment operation.
     //
-    //      Template        - A template either created from the Feature
-    //                        Set or from the Enrollment object.
-    //
-    //      Comparison      - An object that tracks the result of a
-    //                        one-to-one comparison between the Template
-    //                        and the Feature Set.
-    //
+
+    UINT32 MaxFingers;
+
     struct Enrollment {
         BOOLEAN InProgress;
         INT EnrollmentProgress;
     } Enrollment;
 
-    UINT32 MaxFingers;
-
     UINT32 LastMKBPValue;
 
 } WINIBIO_ENGINE_CONTEXT, *PWINIBIO_ENGINE_CONTEXT;
 
-HRESULT ec_command(HANDLE device, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
+HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
 
 void DebugLog(const char* format, ...);

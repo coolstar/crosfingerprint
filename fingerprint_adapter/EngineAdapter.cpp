@@ -318,29 +318,11 @@ EngineAdapterAttach(
 
     Pipeline->EngineContext = newContext;
 
-    DebugLog("Handles: sensor 0x%lx, engine 0x%lx, storage 0x%lx\n", Pipeline->SensorHandle, Pipeline->EngineHandle, Pipeline->StorageHandle);
-
-    struct ec_response_get_version r;
-    hr = ec_command(Pipeline->SensorHandle, EC_CMD_GET_VERSION, 0, NULL, 0, &r, sizeof(struct ec_response_get_version));
-
-    if (!FAILED(hr)) {
-        /* Ensure versions are null-terminated before we print them */
-        r.version_string_ro[sizeof(r.version_string_ro) - 1] = '\0';
-        r.version_string_rw[sizeof(r.version_string_rw) - 1] = '\0';
-
-        DebugLog("EC RO Version: %s\n", r.version_string_ro);
-        DebugLog("EC RW Version: %s\n", r.version_string_rw);
-    }
-    else {
-        DebugLog("Error: Could not get version\n");
-    }
-
     struct ec_response_fp_info info;
     for (int tries = 1; tries <= 10; tries++) {
-        hr = ec_command(Pipeline->SensorHandle, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
+        hr = ec_command(Pipeline, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
         if (FAILED(hr)) {
             Sleep(500);
-            DebugLog("Failed to get FP info; Retrying (%d of 10)...\n", tries);
         }
         else {
             break;
@@ -348,6 +330,7 @@ EngineAdapterAttach(
     }
 
     if (FAILED(hr)) {
+        DebugLog("Failed to get FP info\n");
         goto cleanup;
     }
 
@@ -404,7 +387,18 @@ EngineAdapterClearContext(
         goto cleanup;
     }
 
-    Pipeline->EngineContext->LastMKBPValue = 0;
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    if (context == NULL)
+    {
+        goto cleanup;
+    }
+
+    context->Enrollment.InProgress = FALSE;
+    context->Enrollment.EnrollmentProgress = 0;
+    context->LastMKBPValue = 0;
 
 cleanup:
     return hr;
@@ -450,6 +444,10 @@ EngineAdapterQueryIndexVectorSize(
     // Retrieve the context from the pipeline.
     PWINIBIO_ENGINE_CONTEXT context =
         (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+    if (!context) {
+        hr = E_POINTER;
+        goto cleanup;
+    }
 
     // Specify the number of index vector elements supported by your adapter. This can
     // be any positive value or zero. Return zero if your adapter does not support placing 
@@ -536,8 +534,6 @@ EngineAdapterAcceptSampleData(
     _Out_ PWINBIO_REJECT_DETAIL RejectDetail
     )
 {
-    UNREFERENCED_PARAMETER(Purpose);
-
     DebugLog("Called EngineAdapterAcceptSampleData\n");
 
     HRESULT hr = S_OK;
@@ -840,12 +836,41 @@ EngineAdapterGetEnrollmentStatus(
     _Out_ PWINBIO_REJECT_DETAIL RejectDetail
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(RejectDetail);
-
     DebugLog("Called EngineAdapterGetEnrollmentStatus\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(RejectDetail))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Return if an enrollment is not in progress. This example assumes that 
+    // your engine adapter context contains an enrollment object.
+    if (context->Enrollment.InProgress != TRUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    *RejectDetail = 0;
+
+    if (context->Enrollment.EnrollmentProgress >= 100) {
+        hr = S_OK;
+    }
+    else {
+        hr = WINBIO_I_MORE_DATA;
+    }
+
+ cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 

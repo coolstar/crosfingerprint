@@ -285,27 +285,11 @@ StorageAdapterAttach(
 
     Pipeline->StorageContext = newContext;
 
-    struct ec_response_get_version r;
-    hr = ec_command(Pipeline->SensorHandle, EC_CMD_GET_VERSION, 0, NULL, 0, &r, sizeof(struct ec_response_get_version));
-
-    if (!FAILED(hr)) {
-        /* Ensure versions are null-terminated before we print them */
-        r.version_string_ro[sizeof(r.version_string_ro) - 1] = '\0';
-        r.version_string_rw[sizeof(r.version_string_rw) - 1] = '\0';
-
-        DebugLog("EC RO Version: %s\n", r.version_string_ro);
-        DebugLog("EC RW Version: %s\n", r.version_string_rw);
-    }
-    else {
-        DebugLog("Error: Could not get version\n");
-    }
-
     struct ec_response_fp_info info;
     for (int tries = 1; tries <= 10; tries++) {
-        hr = ec_command(Pipeline->SensorHandle, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
+        hr = ec_command(Pipeline, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
         if (FAILED(hr)) {
             Sleep(500);
-            DebugLog("Failed to get FP info; Retrying (%d of 10)...\n", tries);
         }
         else {
             break;
@@ -313,6 +297,7 @@ StorageAdapterAttach(
     }
 
     if (FAILED(hr)) {
+        DebugLog("Failed to get FP info\n");
         goto cleanup;
     }
 
@@ -320,9 +305,6 @@ StorageAdapterAttach(
 
     newContext->MaxFingers = info.template_max;
     newContext->TemplateSize = info.template_size;
-
-    DebugLog("Handles: sensor 0x%lx, engine 0x%lx, storage 0x%lx\n", Pipeline->SensorHandle, Pipeline->EngineHandle, Pipeline->StorageHandle);
-
 cleanup:
     return hr;
 }

@@ -52,22 +52,8 @@ NOTES:
 //
 ///////////////////////////////////////////////////////////////////////////////
 typedef struct _WINIBIO_SENSOR_CONTEXT {
-    //
-    // The following fields illustrate the kind of information 
-    // the Sensor Adapter needs to keep in this structure:
-    //
-    //      SampleBuffer    - A pointer to the most-recently-captured
-    //                        data sample from the sensor device.
-    //
-    //      SampleSize      - Count of the number of bytes in the
-    //                        sample buffer.
-    //
-    PWINBIO_BIR SampleBuffer;
-    SIZE_T SampleSize;
-
     OVERLAPPED Overlapped;
     CRFP_CAPTURE_DATA CaptureData;
-
 } WINIBIO_SENSOR_CONTEXT, *PWINIBIO_SENSOR_CONTEXT;
 
 

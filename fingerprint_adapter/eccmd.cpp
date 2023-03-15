@@ -1,5 +1,5 @@
-#include <Windows.h>
-#include <stdio.h>
+#include "precomp.h"
+#include "winbio_adapter.h"
 #include <stdlib.h>
 
 #include <winioctl.h>
@@ -16,10 +16,9 @@ typedef struct _CROSEC_COMMAND {
     UINT8 Data[];
 } CROSEC_COMMAND, * PCROSEC_COMMAND;
 
-HRESULT ec_command(HANDLE device, int cmd, int version, const void* outdata, int outsize, void* indata, int insize) {
-    if (device == INVALID_HANDLE_VALUE || !device) {
-        DebugLog("Failed to open CrosEC FP device\n");
-        return HRESULT_FROM_WIN32(ERROR_DEV_NOT_EXIST);
+HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize) {
+    if (!Pipeline) {
+        return E_POINTER;
     }
 
     size_t size = sizeof(CROSEC_COMMAND) + max(outsize, insize);
@@ -38,10 +37,19 @@ HRESULT ec_command(HANDLE device, int cmd, int version, const void* outdata, int
 
     RtlCopyMemory(cmdStruct->Data, outdata, outsize);
 
-    DWORD ret = 0;
-    if (!DeviceIoControl(device, IOCTL_BIOMETRIC_VENDOR, cmdStruct, (DWORD)size, cmdStruct, (DWORD)size, &ret, NULL)) {
+    size_t ret = 0;
+    ULONG error;
+    HRESULT hr = WbioSensorControlUnit(Pipeline,
+        IOCTL_BIOMETRIC_VENDOR,
+        (PUCHAR)cmdStruct,
+        size,
+        (PUCHAR)cmdStruct,
+        size,
+        &ret,
+        &error);
+    if (FAILED(hr)) {
         DebugLog("IOCTL failed\n");
-        return HRESULT_FROM_WIN32(GetLastError());
+        return HRESULT_FROM_WIN32(error);
     }
 
     RtlCopyMemory(indata, cmdStruct->Data, insize);

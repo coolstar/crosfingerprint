@@ -309,7 +309,17 @@ SensorAdapterClearContext(
         goto cleanup;
     }
 
-    RtlZeroMemory(&Pipeline->SensorContext->CaptureData, sizeof(Pipeline->SensorContext->CaptureData));
+    // Retrieve the context from the pipeline.
+    PWINIBIO_SENSOR_CONTEXT sensorContext =
+        (PWINIBIO_SENSOR_CONTEXT)Pipeline->SensorContext;
+
+    // Validate the current state of the sensor.
+    if (sensorContext == NULL)
+    {
+        return WINBIO_E_INVALID_DEVICE_STATE;
+    }
+
+    RtlZeroMemory(&sensorContext->CaptureData, sizeof(sensorContext->CaptureData));
 
 cleanup:
     return hr;
@@ -332,6 +342,16 @@ SensorAdapterQueryStatus(
     if (!ARGUMENT_PRESENT(Pipeline))
     {
         return E_POINTER;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_SENSOR_CONTEXT sensorContext =
+        (PWINIBIO_SENSOR_CONTEXT)Pipeline->SensorContext;
+
+    // Validate the current state of the sensor.
+    if (sensorContext == NULL || Pipeline->SensorHandle == INVALID_HANDLE_VALUE)
+    {
+        return WINBIO_E_INVALID_DEVICE_STATE;
     }
 
     while (TRUE) {
@@ -443,12 +463,25 @@ SensorAdapterStartCapture(
     DebugLog("Called SensorAdapterStartCapture, purpose 0x%x\n", Purpose);
 
     // Verify that the Pipeline parameter is not NULL.
-    if (!ARGUMENT_PRESENT(Pipeline))
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(Purpose) ||
+        !ARGUMENT_PRESENT(Overlapped))
     {
         return E_POINTER;
     }
 
-    *Overlapped = &Pipeline->SensorContext->Overlapped;
+    // Retrieve the context from the pipeline.
+    PWINIBIO_SENSOR_CONTEXT sensorContext =
+        (PWINIBIO_SENSOR_CONTEXT)Pipeline->SensorContext;
+
+    // Verify the state of the pipeline.
+    if (sensorContext == NULL ||
+        Pipeline->SensorHandle == INVALID_HANDLE_VALUE)
+    {
+        return WINBIO_E_INVALID_DEVICE_STATE;
+    }
+
+    *Overlapped = &sensorContext->Overlapped;
 
     DWORD BytesReturned;
 
@@ -496,16 +529,16 @@ SensorAdapterStartCapture(
     Parameters.Purpose = Purpose;
     Parameters.Flags = WINBIO_DATA_FLAG_PROCESSED;
 
-    RtlZeroMemory(&Pipeline->SensorContext->CaptureData, sizeof(CRFP_CAPTURE_DATA));
+    RtlZeroMemory(&sensorContext->CaptureData, sizeof(CRFP_CAPTURE_DATA));
 
     if (!DeviceIoControl(Pipeline->SensorHandle,
         IOCTL_BIOMETRIC_CAPTURE_DATA,
         &Parameters,
         sizeof(WINBIO_CAPTURE_PARAMETERS),
-        &Pipeline->SensorContext->CaptureData,
+        &sensorContext->CaptureData,
         sizeof(CRFP_CAPTURE_DATA),
         &BytesReturned,
-        &Pipeline->SensorContext->Overlapped)) {
+        &sensorContext->Overlapped)) {
 
         DWORD LastError = GetLastError();
         if (GetLastError() != ERROR_IO_PENDING) {
@@ -527,9 +560,21 @@ SensorAdapterFinishCapture(
     UNREFERENCED_PARAMETER(RejectDetail);
 
     // Verify that the Pipeline parameter is not NULL.
-    if (!ARGUMENT_PRESENT(Pipeline))
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(RejectDetail))
     {
         return E_POINTER;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_SENSOR_CONTEXT sensorContext =
+        (PWINIBIO_SENSOR_CONTEXT)Pipeline->SensorContext;
+
+    // Verify the state of the pipeline.
+    if (sensorContext == NULL ||
+        Pipeline->SensorHandle == INVALID_HANDLE_VALUE)
+    {
+        return WINBIO_E_INVALID_DEVICE_STATE;
     }
 
     SetLastError(0);
@@ -608,6 +653,12 @@ SensorAdapterCancel(
         return E_POINTER;
     }
 
+    // Validate the current sensor state.
+    if (Pipeline->SensorHandle == INVALID_HANDLE_VALUE)
+    {
+        return WINBIO_E_INVALID_DEVICE_STATE;
+    }
+
     if (!CancelIoEx(Pipeline->SensorHandle, NULL)) {
         DWORD LastError = GetLastError();
         if (LastError != ERROR_NOT_FOUND) {
@@ -634,7 +685,6 @@ SensorAdapterPushDataToEngine(
     _Out_ PWINBIO_REJECT_DETAIL RejectDetail
     )
 {
-    UNREFERENCED_PARAMETER(Purpose);
     UNREFERENCED_PARAMETER(Flags);
 
     DebugLog("Called SensorAdapterPushDataToEngine. Purpose 0x%x, Flags 0x%x\n", Purpose, Flags);
@@ -712,18 +762,52 @@ SensorAdapterControlUnit(
     _Out_ PULONG OperationStatus
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(ControlCode);
-    UNREFERENCED_PARAMETER(SendBuffer);
-    UNREFERENCED_PARAMETER(SendBufferSize);
-    UNREFERENCED_PARAMETER(ReceiveBuffer);
-    UNREFERENCED_PARAMETER(ReceiveBufferSize);
-    UNREFERENCED_PARAMETER(ReceiveDataSize);
-    UNREFERENCED_PARAMETER(OperationStatus);
-
     DebugLog("Called SensorAdapterControlUnit\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+    BOOL result = TRUE;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(SendBuffer) ||
+        !ARGUMENT_PRESENT(ReceiveBuffer) ||
+        !ARGUMENT_PRESENT(ReceiveDataSize) ||
+        !ARGUMENT_PRESENT(OperationStatus))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_SENSOR_CONTEXT sensorContext =
+        (PWINIBIO_SENSOR_CONTEXT)Pipeline->SensorContext;
+
+    // Verify the state of the pipeline.
+    if (sensorContext == NULL ||
+        Pipeline->SensorHandle == INVALID_HANDLE_VALUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    result = DeviceIoControl(Pipeline->SensorHandle,
+        ControlCode,
+        SendBuffer,
+        SendBufferSize,
+        ReceiveBuffer,
+        ReceiveBufferSize,
+        (LPDWORD)ReceiveDataSize,
+        NULL);
+
+    *OperationStatus = GetLastError();
+
+    if (!result)
+    {
+        hr = HRESULT_FROM_WIN32(*OperationStatus);
+    }
+
+cleanup:
+    return hr;
 }
 ///////////////////////////////////////////////////////////////////////////////
 
