@@ -13,27 +13,33 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms;man;xml</Extensions>
       <UniqueIdentifier>{E0C063ED-18D1-4D6B-A62A-5E6CF79522C1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\adapters">
+      <UniqueIdentifier>{45d13a5d-473d-4a5b-ba30-1b0c46554112}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EngineAdapter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="precompsrc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="apt-log.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SensorAdapter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="StorageAdapter.cpp">
+    <ClCompile Include="eccmd.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="eccmd.cpp">
+    <ClCompile Include="EngineAdapter.cpp">
+      <Filter>Source Files\adapters</Filter>
+    </ClCompile>
+    <ClCompile Include="SensorAdapter.cpp">
+      <Filter>Source Files\adapters</Filter>
+    </ClCompile>
+    <ClCompile Include="StorageAdapter.cpp">
+      <Filter>Source Files\adapters</Filter>
+    </ClCompile>
+    <ClCompile Include="RecordDatabase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -476,6 +476,23 @@ StorageAdapterOpenDatabase(
         }
     }
 
+    hr = LoadDatabase(Pipeline);
+    if (FAILED(hr)) {
+        goto cleanup;
+    }
+
+    SIZE_T ReceivedSz;
+    ULONG Status;
+    hr = WbioStorageControlUnit(Pipeline,
+        StorageControlCodeUploadToHw,
+        NULL, 0,
+        NULL, 0,
+        &ReceivedSz,
+        &Status);
+    if (FAILED(hr)) {
+        goto cleanup;
+    }
+
 cleanup:
     return hr;
 }
@@ -579,7 +596,7 @@ StorageAdapterAddRecord(
     PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
 
     // Verify the pipeline state.
-    if (storageContext == NULL /*|| Pipeline->StorageHandle == INVALID_HANDLE_VALUE*/)
+    if (storageContext == NULL || Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
     {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
@@ -635,7 +652,86 @@ StorageAdapterDeleteRecord(
 
     DebugLog("Called StorageAdapterDeleteRecord. Identity Type %d\n", Identity->Type);
 
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the pipeline state.
+    if (storageContext == NULL || Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    // Verify the Identity argument.
+    if (Identity->Type != WINBIO_ID_TYPE_GUID &&
+        Identity->Type != WINBIO_ID_TYPE_SID &&
+        Identity->Type != WINBIO_ID_TYPE_WILDCARD)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    if (Identity->Type == WINBIO_ID_TYPE_WILDCARD &&
+        Identity->Value.Wildcard != WINBIO_IDENTITY_WILDCARD)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    // WINBIO_SUBTYPE_ANY is a valid sub-factor.
+    // WINBIO_SUBTYPE_NO_INFORMATION is not a valid sub-factor.
+    if (SubFactor == WINBIO_SUBTYPE_NO_INFORMATION)
+    {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    auto it = storageContext->Database.begin();
+    while (it != storageContext->Database.end()) {
+        if (MatchSubject(Identity, SubFactor, *it)) {
+            DebugLog("Matched for deletion!\n");
+            it = storageContext->Database.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    DebugLog("New Count: %d\n", storageContext->Database.size());
+
+    SIZE_T ReceivedSz;
+    ULONG Status;
+    hr = WbioStorageControlUnit(Pipeline,
+        StorageControlCodeSaveToDisk,
+        NULL, 0,
+        NULL, 0,
+        &ReceivedSz,
+        &Status);
+    if (FAILED(hr)) {
+        goto cleanup;
+    }
+
+    hr = WbioStorageControlUnit(Pipeline,
+        StorageControlCodeUploadToHw,
+        NULL, 0,
+        NULL, 0,
+        &ReceivedSz,
+        &Status);
+    if (FAILED(hr)) {
+        goto cleanup;
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -666,7 +762,7 @@ StorageAdapterQueryBySubject(
     PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
 
     // Verify the pipeline state.
-    if (storageContext == NULL /*|| Pipeline->StorageHandle == INVALID_HANDLE_VALUE*/)
+    if (storageContext == NULL || Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
     {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
@@ -716,20 +812,9 @@ StorageAdapterQueryBySubject(
 
         DebugLog("\tIdentity Type: %d, Subfactor: %d\n", record.Identity.Type, record.SubFactor);
 
-        if ((SubFactor == WINBIO_SUBTYPE_ANY || SubFactor == record.SubFactor) && 
-            Identity->Type == record.Identity.Type) {
-            if (record.Identity.Type == WINBIO_ID_TYPE_GUID &&
-                (memcmp(&Identity->Value.TemplateGuid, &record.Identity.Value.TemplateGuid, sizeof(Identity->Value.TemplateGuid)) == 0)) {
-                hr = S_OK;
-                break;
-            }
-            else if (record.Identity.Type == WINBIO_ID_TYPE_SID &&
-                Identity->Value.AccountSid.Size == record.Identity.Value.AccountSid.Size &&
-                Identity->Value.AccountSid.Size <= sizeof(Identity->Value.AccountSid.Data) &&
-                (memcmp(Identity->Value.AccountSid.Data, record.Identity.Value.AccountSid.Data, Identity->Value.AccountSid.Size) == 0)){
-                hr = S_OK;
-                break;
-            }
+        if (MatchSubject(Identity, SubFactor, record)) {
+            hr = S_OK;
+            break;
         }
     }
 
@@ -926,8 +1011,8 @@ StorageAdapterControlUnit(
         (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
 
     // Verify the state of the pipeline.
-    if (storageContext == NULL /* ||
-        Pipeline->StorageHandle == INVALID_HANDLE_VALUE*/)
+    if (storageContext == NULL  ||
+        Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
     {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
@@ -939,8 +1024,8 @@ StorageAdapterControlUnit(
         hr = S_OK;
         break;
     case StorageControlCodeSaveToDisk:
-        DebugLog("TODO: Save to disk\n");
-        hr = S_OK;
+        DebugLog("Save to disk\n");
+        hr = SaveDatabase(Pipeline);
         break;
     default:
         hr = WINBIO_E_INVALID_CONTROL_CODE;

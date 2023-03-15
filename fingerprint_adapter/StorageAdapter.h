@@ -42,13 +42,17 @@ typedef struct _CRFP_STORAGE_RECORD {
     UINT32 TemplateSize;
     PUCHAR TemplateData;
 
-    WINBIO_IDENTITY Identity;
     WINBIO_BIOMETRIC_SUBTYPE SubFactor;
+    WINBIO_IDENTITY Identity;
 } CRFP_STORAGE_RECORD, *PCRFP_STORAGE_RECORD;
+
+#define CRFP_DB_MAGIC 'CRDB'
 
 typedef struct _CRFP_DATABASE_FILE_HEADER {
     UINT32 FileMagic;
     UINT32 RecordsCount;
+    UINT32 RecordSize;
+    UINT32 TemplateSize;
 
     //CRFP_STORAGE_RECORD Records[];
     //PUCHAR Templates[];
@@ -76,3 +80,11 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
     std::vector<CRFP_STORAGE_RECORD> Database;
 
 } WINIBIO_STORAGE_CONTEXT, *PWINIBIO_STORAGE_CONTEXT;
+
+HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline);
+HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline);
+BOOLEAN MatchSubject(
+    _In_ PWINBIO_IDENTITY Identity,
+    _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor,
+    CRFP_STORAGE_RECORD record
+);

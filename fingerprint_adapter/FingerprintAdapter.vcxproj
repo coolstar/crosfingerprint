@@ -217,6 +217,7 @@
       <PreCompiledHeader>Create</PreCompiledHeader>
       <PreCompiledHeaderOutputFile>$(IntDir)\precomp.h.pch</PreCompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="RecordDatabase.cpp" />
     <ClCompile Include="SensorAdapter.cpp" />
     <ClCompile Include="StorageAdapter.cpp" />
     <ResourceCompile Include="FingerprintAdapter.rc" />
