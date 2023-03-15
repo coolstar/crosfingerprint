@@ -16,7 +16,15 @@ NTSTATUS CrosFPSensorStatus
 
 	p.mode = FP_MODE_DONT_CHANGE;
 
-	status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+	for (int retries = 0; retries < 10; retries++) {
+		status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
+		if (NT_SUCCESS(status)) {
+			break;
+		}
+		else {
+			Sleep(1);
+		}
+	}
 	if (!NT_SUCCESS(status)) {
 		return status;
 	}
