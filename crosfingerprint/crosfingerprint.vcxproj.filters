@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="crosfingerprint.c" />
+    <ClCompile Include="umdf-log.c" />
+    <ClCompile Include="wbdi.c" />
+    <ClCompile Include="cros_ec_spi.c">
+      <Filter>SPI</Filter>
+    </ClCompile>
+    <ClCompile Include="spb.c">
+      <Filter>SPI</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="crosfingerprint.h" />
+    <ClInclude Include="ec_commands.h" />
+    <ClInclude Include="stdint.h" />
+    <ClInclude Include="spb.h">
+      <Filter>SPI</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="crosfingerprint.inf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="SPI">
+      <UniqueIdentifier>{f177dfe7-0511-4930-ac46-660d27f49ba1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
