@@ -3,10 +3,10 @@
 ;Copyright (c) CoolStar.  All rights reserved.
 ;
 ;Module Name:
-;    coolstar.inf
+;    crosfingerprint.inf
 ;
 ;Abstract:
-;    INF file for installing the TS3A227E Jack Detect Driver 
+;    INF file for installing the Chromebook Fingerprint Driver 
 ;
 ;
 ;--*/
@@ -26,7 +26,8 @@ PnpLockdown=1
 %ManufacturerName%=Standard,NT$ARCH$
 
 [Standard.NT$ARCH$]
-%DeviceName%=CrosFp_Device, ACPI\CRFP0000 ; TODO: edit hw-id
+%DeviceName%=CrosFp_Device, ACPI\CRFP0000; SPI fingerprint
+%DeviceName%=CrosFp_Device, ACPI\CRFP0001; UART fingerprint
 
 [SourceDisksFiles]
 crosfingerprint.dll=1

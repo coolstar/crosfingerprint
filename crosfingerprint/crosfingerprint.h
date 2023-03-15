@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #include "spb.h"
+#include "uart.h"
 
 //
 // String definitions
@@ -47,6 +48,11 @@ typedef struct _CROSEC_COMMAND {
     UINT8 Data[];
 } CROSEC_COMMAND, * PCROSEC_COMMAND;
 
+typedef enum CROSFP_TYPE {
+    CROSFP_TYPESPI,
+    CROSFP_TYPEUART
+} CROSFP_TYPE, *PCROSFP_TYPE;
+
 typedef struct _CROSFP_CONTEXT
 {
 
@@ -55,7 +61,11 @@ typedef struct _CROSFP_CONTEXT
     WDFQUEUE Queue;
 
     WDFWAITLOCK IoLock;
-	SPB_CONTEXT SpbContext;
+    CROSFP_TYPE IoType;
+    union {
+        SPB_CONTEXT SpbContext;
+        UART_CONTEXT UartContext;
+    };
 
 	WDFINTERRUPT Interrupt;
     WDFREQUEST CurrentCapture;

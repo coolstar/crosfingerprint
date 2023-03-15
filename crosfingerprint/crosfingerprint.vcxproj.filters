@@ -10,6 +10,12 @@
     <ClCompile Include="spb.c">
       <Filter>SPI</Filter>
     </ClCompile>
+    <ClCompile Include="cros_ec_uart.c">
+      <Filter>UART</Filter>
+    </ClCompile>
+    <ClCompile Include="uart.c">
+      <Filter>UART</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crosfingerprint.h" />
@@ -18,11 +24,17 @@
     <ClInclude Include="spb.h">
       <Filter>SPI</Filter>
     </ClInclude>
+    <ClInclude Include="uart.h">
+      <Filter>UART</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="crosfingerprint.inf" />
   </ItemGroup>
   <ItemGroup>
+    <Filter Include="UART">
+      <UniqueIdentifier>{f033601e-7030-4956-951d-5ad7594aa024}</UniqueIdentifier>
+    </Filter>
     <Filter Include="SPI">
       <UniqueIdentifier>{f177dfe7-0511-4930-ac46-660d27f49ba1}</UniqueIdentifier>
     </Filter>

@@ -255,7 +255,9 @@
     <ClCompile Include="crosfpsensor.c" />
     <ClCompile Include="cros_ec_common.c" />
     <ClCompile Include="cros_ec_spi.c" />
+    <ClCompile Include="cros_ec_uart.c" />
     <ClCompile Include="spb.c" />
+    <ClCompile Include="uart.c" />
     <ClCompile Include="umdf-log.c" />
     <ClCompile Include="wbdi.c" />
   </ItemGroup>
@@ -265,6 +267,7 @@
     <ClInclude Include="ec_commands.h" />
     <ClInclude Include="spb.h" />
     <ClInclude Include="stdint.h" />
+    <ClInclude Include="uart.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\fingerprint_adapter\FingerprintAdapter.vcxproj">

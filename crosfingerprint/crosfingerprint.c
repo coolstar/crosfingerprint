@@ -129,7 +129,7 @@ Status
 --*/
 {
 	PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
-	BOOLEAN fSPIResourceFound = FALSE, fIRQResourceFound = FALSE;
+	BOOLEAN fDataResourceFound = FALSE, fIRQResourceFound = FALSE;
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 	WDF_INTERRUPT_CONFIG interruptConfig;
 
@@ -163,12 +163,24 @@ Status
 			if (Class == CM_RESOURCE_CONNECTION_CLASS_SERIAL &&
 				Type == CM_RESOURCE_CONNECTION_TYPE_SERIAL_SPI)
 			{
-				if (fSPIResourceFound == FALSE)
+				if (fDataResourceFound == FALSE)
 				{
 					status = STATUS_SUCCESS;
 					pDevice->SpbContext.SpiResHubId.LowPart = pDescriptor->u.Connection.IdLowPart;
 					pDevice->SpbContext.SpiResHubId.HighPart = pDescriptor->u.Connection.IdHighPart;
-					fSPIResourceFound = TRUE;
+					pDevice->IoType = CROSFP_TYPESPI;
+					fDataResourceFound = TRUE;
+				}
+			} else if (Class == CM_RESOURCE_CONNECTION_CLASS_SERIAL &&
+				Type == CM_RESOURCE_CONNECTION_TYPE_SERIAL_UART)
+			{
+				if (fDataResourceFound == FALSE)
+				{
+					status = STATUS_SUCCESS;
+					pDevice->UartContext.UartResHubId.LowPart = pDescriptor->u.Connection.IdLowPart;
+					pDevice->UartContext.UartResHubId.HighPart = pDescriptor->u.Connection.IdHighPart;
+					pDevice->IoType = CROSFP_TYPEUART;
+					fDataResourceFound = TRUE;
 				}
 			}
 			break;
@@ -209,13 +221,23 @@ Status
 	// An SPB resource is required.
 	//
 
-	if (fSPIResourceFound == FALSE || fIRQResourceFound == FALSE)
+	if (fDataResourceFound == FALSE || fIRQResourceFound == FALSE)
 	{
 		status = STATUS_NOT_FOUND;
 	}
 
-	status = SpbTargetInitialize(FxDevice, &pDevice->SpbContext);
-
+	switch (pDevice->IoType) {
+	case CROSFP_TYPESPI:
+		status = SpbTargetInitialize(FxDevice, &pDevice->SpbContext);
+		break;
+	case CROSFP_TYPEUART:
+		status = UartTargetInitialize(FxDevice, &pDevice->UartContext);
+		break;
+	default:
+		status = STATUS_INVALID_DEVICE_STATE;
+		break;
+	}
+		
 	if (!NT_SUCCESS(status))
 	{
 		return status;
@@ -250,7 +272,18 @@ Status
 
 	UNREFERENCED_PARAMETER(FxResourcesTranslated);
 
-	SpbTargetDeinitialize(FxDevice, &pDevice->SpbContext);
+	switch (pDevice->IoType) {
+	case CROSFP_TYPESPI:
+		SpbTargetDeinitialize(FxDevice, &pDevice->SpbContext);
+		break;
+	case CROSFP_TYPEUART:
+		UartTargetDeinitialize(FxDevice, &pDevice->UartContext);
+		break;
+	default:
+		status = STATUS_INVALID_DEVICE_STATE;
+		break;
+	}
+	
 
 	return status;
 }

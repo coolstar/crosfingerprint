@@ -1,6 +1,31 @@
 #include "crosfingerprint.h"
 #include "ec_commands.h"
 
+NTSTATUS cros_ec_pkt_xfer_spi(
+	PCROSFP_CONTEXT pDevice,
+	PCROSEC_COMMAND msg
+);
+NTSTATUS cros_ec_pkt_xfer_uart(
+	PCROSFP_CONTEXT pDevice,
+	PCROSEC_COMMAND msg
+);
+
+NTSTATUS cros_ec_pkt_xfer(
+	PCROSFP_CONTEXT pDevice,
+	PCROSEC_COMMAND msg
+)
+{
+	switch (pDevice->IoType)
+	{
+	case CROSFP_TYPESPI:
+		return cros_ec_pkt_xfer_spi(pDevice, msg);
+	case CROSFP_TYPEUART:
+		return cros_ec_pkt_xfer_uart(pDevice, msg);
+	default:
+		return STATUS_INVALID_DEVICE_STATE;
+	}
+}
+
 NTSTATUS cros_ec_command(
 	PCROSFP_CONTEXT pDevice,
 	UINT16 command, UINT8 version,
