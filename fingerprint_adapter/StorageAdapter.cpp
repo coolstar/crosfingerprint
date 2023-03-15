@@ -390,14 +390,37 @@ StorageAdapterEraseDatabase(
     _In_ LPCWSTR ConnectString
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
     UNREFERENCED_PARAMETER(DatabaseId);
-    UNREFERENCED_PARAMETER(FilePath);
     UNREFERENCED_PARAMETER(ConnectString);
 
     DebugLog("Called StorageAdapterEraseDatabase. File Path: %ls\n", FilePath);
 
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(FilePath))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
+        WINBIO_IDENTITY Identity = { 0 };
+        Identity.Type = WINBIO_ID_TYPE_WILDCARD;
+        Identity.Value.Wildcard = WINBIO_IDENTITY_WILDCARD;
+        hr = StorageAdapterDeleteRecord(Pipeline, &Identity, WINBIO_SUBTYPE_ANY);
+        if (FAILED(hr)) {
+            goto cleanup;
+        }
+    }
+    else {
+        if (!DeleteFile(FilePath)) {
+            hr = HRESULT_FROM_WIN32(GetLastError());
+        }
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -410,14 +433,51 @@ StorageAdapterOpenDatabase(
     _In_ LPCWSTR ConnectString
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
     UNREFERENCED_PARAMETER(DatabaseId);
-    UNREFERENCED_PARAMETER(FilePath);
     UNREFERENCED_PARAMETER(ConnectString);
 
     DebugLog("Called StorageAdapterOpenDatabase. File Path: %ls\n", FilePath);
 
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(FilePath))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the pipeline state.
+    if (storageContext == NULL)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    if (Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
+        hr = S_OK;
+        goto cleanup;
+    }
+    else {
+        Pipeline->StorageHandle = CreateFile(
+            FilePath,
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            NULL,
+            OPEN_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL
+        );
+        if (Pipeline->StorageHandle == INVALID_HANDLE_VALUE) {
+            hr = HRESULT_FROM_WIN32(GetLastError());
+        }
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -427,11 +487,35 @@ StorageAdapterCloseDatabase(
     _Inout_ PWINBIO_PIPELINE Pipeline
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-
     DebugLog("Called StorageAdapterCloseDatabase\n");
 
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext =
+        (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the pipeline state.
+    if (storageContext == NULL ||
+        Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    // Close the database file handle.
+    CloseHandle(Pipeline->StorageHandle);
+    Pipeline->StorageHandle = INVALID_HANDLE_VALUE;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -495,7 +579,7 @@ StorageAdapterAddRecord(
     PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
 
     // Verify the pipeline state.
-    if (storageContext == NULL /*|| storageContext->FileHandle == INVALID_HANDLE_VALUE*/)
+    if (storageContext == NULL /*|| Pipeline->StorageHandle == INVALID_HANDLE_VALUE*/)
     {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
@@ -580,7 +664,7 @@ StorageAdapterQueryBySubject(
     PWINIBIO_STORAGE_CONTEXT storageContext = (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
 
     // Verify the pipeline state.
-    if (storageContext == NULL /*|| storageContext->FileHandle == INVALID_HANDLE_VALUE*/)
+    if (storageContext == NULL /*|| Pipeline->StorageHandle == INVALID_HANDLE_VALUE*/)
     {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
