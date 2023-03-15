@@ -622,21 +622,6 @@ StorageAdapterQueryBySubject(
         goto cleanup;
     }
 
-    if (Identity->Type == WINBIO_ID_TYPE_GUID) {
-        DebugLog("GUID: {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
-            Identity->Value.TemplateGuid.Data1, Identity->Value.TemplateGuid.Data2, Identity->Value.TemplateGuid.Data3,
-            Identity->Value.TemplateGuid.Data4[0], Identity->Value.TemplateGuid.Data4[1], Identity->Value.TemplateGuid.Data4[2], Identity->Value.TemplateGuid.Data4[3],
-            Identity->Value.TemplateGuid.Data4[4], Identity->Value.TemplateGuid.Data4[5], Identity->Value.TemplateGuid.Data4[6], Identity->Value.TemplateGuid.Data4[7]);
-    }
-
-    if (Identity->Type == WINBIO_ID_TYPE_SID) {
-        DebugLog("Identity SID size %d: ", Identity->Value.AccountSid.Size);
-        for (int j = 0; j < max(Identity->Value.AccountSid.Size, sizeof(Identity->Value.AccountSid.Data)); j++) {
-            DebugLog("0x%x ", Identity->Value.AccountSid.Data[j]);
-        }
-        DebugLog("\n");
-    }
-
     hr = WINBIO_E_DATABASE_NO_RESULTS;
     for (int i = 0; i < storageContext->Database.size(); i++) {
         CRFP_STORAGE_RECORD record = storageContext->Database[i];
@@ -644,20 +629,6 @@ StorageAdapterQueryBySubject(
         DebugLog("Record %d: \n", i);
 
         DebugLog("\tIdentity Type: %d, Subfactor: %d\n", record.Identity.Type, record.SubFactor);
-        if (record.Identity.Type == WINBIO_ID_TYPE_GUID) {
-            DebugLog("GUID: {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
-                record.Identity.Value.TemplateGuid.Data1, record.Identity.Value.TemplateGuid.Data2, record.Identity.Value.TemplateGuid.Data3,
-                record.Identity.Value.TemplateGuid.Data4[0], record.Identity.Value.TemplateGuid.Data4[1], record.Identity.Value.TemplateGuid.Data4[2], record.Identity.Value.TemplateGuid.Data4[3],
-                record.Identity.Value.TemplateGuid.Data4[4], record.Identity.Value.TemplateGuid.Data4[5], record.Identity.Value.TemplateGuid.Data4[6], record.Identity.Value.TemplateGuid.Data4[7]);
-        }
-
-        if (record.Identity.Type == WINBIO_ID_TYPE_SID) {
-            DebugLog("\tIdentity SID size %d: ", record.Identity.Value.AccountSid.Size);
-            for (int j = 0; j < max(record.Identity.Value.AccountSid.Size, sizeof(record.Identity.Value.AccountSid.Data)); j++) {
-                DebugLog("0x%x ", record.Identity.Value.AccountSid.Data[j]);
-            }
-            DebugLog("\n"); 
-        }
 
         if ((SubFactor == WINBIO_SUBTYPE_ANY || SubFactor == record.SubFactor) && 
             Identity->Type == record.Identity.Type) {
