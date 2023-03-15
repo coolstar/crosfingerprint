@@ -253,6 +253,7 @@
   <ItemGroup>
     <ClCompile Include="crosfingerprint.c" />
     <ClCompile Include="crosfpsensor.c" />
+    <ClCompile Include="cros_ec_common.c" />
     <ClCompile Include="cros_ec_spi.c" />
     <ClCompile Include="spb.c" />
     <ClCompile Include="umdf-log.c" />
