@@ -83,6 +83,8 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
 
 HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline);
 HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline);
+HRESULT SyncDatabaseToMCU(PWINBIO_PIPELINE Pipeline);
+
 BOOLEAN MatchSubject(
     _In_ PWINBIO_IDENTITY Identity,
     _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor,

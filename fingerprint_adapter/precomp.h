@@ -67,6 +67,10 @@ void DebugLog(const char* format, ...);
 HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* outdata, int outsize, void* indata, int insize);
 HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR* outBuffer, UINT32 templateSize, int idx);
 
+HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline);
+
+HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 templateSize);
+
 enum StorageControlCode {
     StorageControlCodeNone,
     StorageControlCodeUploadToHw,

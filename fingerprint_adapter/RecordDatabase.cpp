@@ -169,7 +169,6 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
         DebugLog("Saving template for record %d\n", i);
         PCRFP_STORAGE_RECORD record = &storageContext->Database[i];
 
-        record->TemplateData = (PUCHAR)malloc(record->TemplateSize);
         if (!WriteFile(Pipeline->StorageHandle, record->TemplateData,
             record->TemplateSize,
             &bytesRead, NULL) || bytesRead != record->TemplateSize) {
@@ -230,4 +229,64 @@ BOOLEAN MatchSubject(
         }
     }
     return false;
+}
+
+HRESULT SyncDatabaseToMCU(PWINBIO_PIPELINE Pipeline) {
+    HRESULT hr = S_OK;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        hr = E_POINTER;
+        return hr;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext =
+        (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    // Verify the state of the pipeline.
+    if (storageContext == NULL ||
+        Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        return hr;
+    }
+
+    //Make sure fpseed is set
+    hr = WbioSensorReset(Pipeline);
+    if (FAILED(hr)) {
+        DebugLog("Calibrate failed\n");
+        return hr;
+    }
+
+    hr = ResetFPContext(Pipeline);
+    if (FAILED(hr)) {
+        DebugLog("FP Context reset failed\n");
+        return hr;
+    }
+
+    for (int i = 0; i < storageContext->Database.size(); i++) {
+        CRFP_STORAGE_RECORD record = storageContext->Database[i];
+        hr = UploadTemplate(Pipeline, record.TemplateData, record.TemplateSize);
+        if (FAILED(hr)) {
+            DebugLog("Failed to upload template %d\n", i);
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    /*if (FAILED(hr)) {
+        DebugLog("EC Console:\n\n=======================================\n");
+        PrintConsole(Pipeline);
+        DebugLog("=======================================\nEnd Console\n");
+    }*/
+    if (FAILED(hr)) {
+        WINBIO_IDENTITY Identity = { 0 };
+        Identity.Type = WINBIO_ID_TYPE_WILDCARD;
+        Identity.Value.Wildcard = WINBIO_IDENTITY_WILDCARD;
+        WbioStorageDeleteRecord(Pipeline, &Identity, WINBIO_SUBTYPE_ANY);
+    }
+
+    return hr;
 }

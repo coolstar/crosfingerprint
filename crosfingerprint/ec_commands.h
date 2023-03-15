@@ -795,6 +795,23 @@ struct ec_params_pwm_set_fan_duty_v1 {
 
 #include <poppack.h>
 
+/* Snapshot console output buffer for use by EC_CMD_CONSOLE_READ. */
+#define EC_CMD_CONSOLE_SNAPSHOT 0x0097
+
+/*
+ * Read data from the saved snapshot. If the subcmd parameter is
+ * CONSOLE_READ_NEXT, this will return data starting from the beginning of
+ * the latest snapshot. If it is CONSOLE_READ_RECENT, it will start from the
+ * end of the previous snapshot.
+ *
+ * The params are only looked at in version >= 1 of this command. Prior
+ * versions will just default to CONSOLE_READ_NEXT behavior.
+ *
+ * Response is null-terminated string.  Empty string, if there is no more
+ * remaining output.
+ */
+#define EC_CMD_CONSOLE_READ 0x0098
+
 /*****************************************************************************/
 /* List the features supported by the firmware */
 #define EC_CMD_GET_FEATURES  0x000D

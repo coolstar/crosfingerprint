@@ -126,3 +126,132 @@ HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 te
     *outBuffer = buffer;
     return hr;
 }
+
+HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
+    if (!Pipeline) {
+        return E_POINTER;
+    }
+
+    UINT32 userID[] = {1, 2, 3, 4, 5, 6, 7, 8};
+    struct ec_params_fp_context_v1 p;
+
+    p.action = FP_CONTEXT_ASYNC;
+    RtlCopyMemory(p.userid, userID, sizeof(userID));
+
+    int tries = 20;
+
+    HRESULT hr = ec_command(Pipeline, EC_CMD_FP_CONTEXT, 1, &p, sizeof(p), NULL, 0);
+    if (FAILED(hr)) {
+
+        goto cleanup;
+    }
+
+    while (tries--) {
+        Sleep(100);
+
+        p.action = FP_CONTEXT_GET_RESULT;
+        hr = ec_command(Pipeline, EC_CMD_FP_CONTEXT, 1, &p, sizeof(p), NULL, 0);
+        if (SUCCEEDED(hr)) {
+            break;
+        }
+
+        if (hr != -EC_RES_BUSY) {
+            break;
+        }
+    }
+
+cleanup:
+    return hr;
+}
+
+HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 templateSize) {
+    if (!Pipeline) {
+        return E_POINTER;
+    }
+
+    struct ec_response_get_protocol_info info;
+    HRESULT hr = ec_command(Pipeline, EC_CMD_GET_PROTOCOL_INFO, 0, NULL, 0, &info, sizeof(info));
+    if (FAILED(hr)) {
+        DebugLog("Failed to get Protocol Info\n");
+        return hr;
+    }
+
+    UINT32 ec_max_outsize = info.max_request_packet_size - sizeof(struct ec_host_request);
+
+    struct ec_params_fp_template* p = (struct ec_params_fp_template* )malloc(ec_max_outsize);
+    if (!p) {
+        return WINBIO_E_DATABASE_WRITE_ERROR;
+    }
+
+    DebugLog("Uploading fingerprint template: %d bytes\n", templateSize);
+
+    UINT32 max_chunk = ec_max_outsize - offsetof(struct ec_params_fp_template, data) - 4;
+    UINT32 size, offset;
+    size = templateSize;
+    offset = 0;
+
+    while (size) {
+        UINT32 tlen = min(max_chunk, size);
+        DebugLog("Uploading (%d bytes in stride)... ", tlen);
+
+        p->offset = offset;
+        p->size = tlen;
+        size -= tlen;
+        if (!size)
+            p->size |= FP_TEMPLATE_COMMIT;
+        RtlCopyMemory(p->data, buffer + offset, tlen);
+
+        hr = ec_command(Pipeline, EC_CMD_FP_TEMPLATE, 0, p,
+            tlen + offsetof(struct ec_params_fp_template, data),
+            NULL, 0);
+        if (FAILED(hr))
+            break;
+        offset += tlen;
+    }
+    if (FAILED(hr)) {
+        DebugLog("Upload failed: %d\n", hr);
+    }
+    else {
+        DebugLog("Upload success!\n");
+    }
+    
+    free(p);
+    return hr;
+}
+
+/*HRESULT PrintConsole(PWINBIO_PIPELINE Pipeline) {
+    if (!Pipeline) {
+        return E_POINTER;
+    }
+
+    struct ec_response_get_protocol_info info;
+    HRESULT hr = ec_command(Pipeline, EC_CMD_GET_PROTOCOL_INFO, 0, NULL, 0, &info, sizeof(info));
+    if (FAILED(hr)) {
+        DebugLog("Failed to get Protocol Info\n");
+        return hr;
+    }
+
+    UINT32 ec_max_outsize = info.max_request_packet_size - sizeof(struct ec_host_request);
+    UINT32 ec_max_insize = info.max_response_packet_size - sizeof(struct ec_host_response);
+
+    PUCHAR inbuf = (PUCHAR)malloc(ec_max_insize);
+    hr = ec_command(Pipeline, EC_CMD_CONSOLE_SNAPSHOT, 0, NULL, 0, NULL, 0);
+    if (FAILED(hr)) {
+        DebugLog("Failed to get console snapshot\n");
+        goto cleanup;
+    }
+
+    while (true) {
+        hr = ec_command(Pipeline, EC_CMD_CONSOLE_READ, 0, NULL, 0, inbuf, ec_max_insize);
+        if (FAILED(hr) || !*inbuf) {
+            goto cleanup;
+        }
+
+        inbuf[ec_max_insize - 1] = '\0';
+        DebugLog("%s", inbuf);
+    }
+
+cleanup:
+    free(inbuf);
+    return hr;
+}*/

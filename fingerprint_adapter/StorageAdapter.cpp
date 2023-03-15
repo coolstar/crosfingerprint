@@ -1020,8 +1020,8 @@ StorageAdapterControlUnit(
 
     switch (ControlCode) {
     case StorageControlCodeUploadToHw:
-        DebugLog("TODO: Upload to Hardware\n");
-        hr = S_OK;
+        DebugLog("Upload to Hardware\n");
+        hr = SyncDatabaseToMCU(Pipeline);
         break;
     case StorageControlCodeSaveToDisk:
         DebugLog("Save to disk\n");
