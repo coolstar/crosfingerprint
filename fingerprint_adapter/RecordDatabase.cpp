@@ -284,12 +284,6 @@ cleanup:
         PrintConsole(Pipeline);
         DebugLog("=======================================\nEnd Console\n");
     }*/
-    if (FAILED(hr)) {
-        WINBIO_IDENTITY Identity = { 0 };
-        Identity.Type = WINBIO_ID_TYPE_WILDCARD;
-        Identity.Value.Wildcard = WINBIO_IDENTITY_WILDCARD;
-        WbioStorageDeleteRecord(Pipeline, &Identity, WINBIO_SUBTYPE_ANY);
-    }
 
     return hr;
 }

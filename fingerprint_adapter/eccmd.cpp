@@ -135,6 +135,8 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
         return E_POINTER;
     }
 
+    DebugLog("Resetting FP Context\n");
+
     UINT32 userID[] = {1, 2, 3, 4, 5, 6, 7, 8};
     struct ec_params_fp_context_v1 p;
 
@@ -145,7 +147,7 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
 
     HRESULT hr = ec_command(Pipeline, EC_CMD_FP_CONTEXT, 1, &p, sizeof(p), NULL, 0);
     if (FAILED(hr)) {
-
+        DebugLog("Reset FP Context (async): %d\n", hr);
         goto cleanup;
     }
 
@@ -159,11 +161,13 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
         }
 
         if (hr != -EC_RES_BUSY) {
+            DebugLog("Failed to reset FP Context: %d\n", hr);
             break;
         }
     }
 
 cleanup:
+    DebugLog("Reset FP Context: %d\n", hr);
     return hr;
 }
 
