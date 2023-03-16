@@ -43,13 +43,13 @@ HRESULT ec_command(PWINBIO_PIPELINE Pipeline, int cmd, int version, const void* 
     HRESULT hr = WbioSensorControlUnit(Pipeline,
         IOCTL_BIOMETRIC_VENDOR,
         (PUCHAR)cmdStruct,
-        size,
+        sizeof(CROSEC_COMMAND) + outsize,
         (PUCHAR)cmdStruct,
-        size,
+        sizeof(CROSEC_COMMAND) + insize,
         &ret,
         &error);
     if (FAILED(hr)) {
-        DebugLog("IOCTL failed\n");
+        DebugLog("IOCTL failed 0x%x\n", error);
         return HRESULT_FROM_WIN32(error);
     }
 

@@ -77,10 +77,21 @@ NTSTATUS CrosECIoctlXCmd(_In_ PCROSFP_CONTEXT pDevice, _In_ WDFREQUEST Request) 
 	NT_RETURN_IF(STATUS_BUFFER_TOO_SMALL, cmdLen < (sizeof(CROSEC_COMMAND) + cmd->OutSize));
 	NT_RETURN_IF(STATUS_BUFFER_TOO_SMALL, outLen < (sizeof(CROSEC_COMMAND) + cmd->InSize));
 
-	RtlCopyMemory(outCmd, cmd, sizeof(*cmd)); //Copy header
-	RtlCopyMemory(outCmd->Data, cmd->Data, cmd->OutSize);
 
-	NTSTATUS cmdStatus = cros_ec_pkt_xfer(pDevice, outCmd);
+	PCROSEC_COMMAND xferCmd = malloc(max(cmdLen, outLen));
+	if (!xferCmd) {
+		return STATUS_NO_MEMORY;
+	}
+
+	RtlCopyMemory(xferCmd, cmd, sizeof(*cmd)); //Copy header
+	RtlCopyMemory(xferCmd->Data, cmd->Data, cmd->OutSize);
+
+	NTSTATUS cmdStatus = cros_ec_pkt_xfer(pDevice, xferCmd);
+
+	RtlCopyMemory(outCmd, xferCmd, sizeof(*cmd)); //Copy header
+	RtlCopyMemory(outCmd->Data, xferCmd->Data, cmd->InSize);
+
+	free(xferCmd);
 
 	if (!NT_SUCCESS(cmdStatus)) {
 		outCmd->Result = cmdStatus;
