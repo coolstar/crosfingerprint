@@ -72,10 +72,6 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 
 	WdfWaitLockAcquire(pDevice->IoLock, NULL);
 
-	if (GetTickCount64() == pDevice->LastTransferTick) {
-		Sleep(1);
-	}
-
 	status = SpbLockController(&pDevice->SpbContext);
 	if (!NT_SUCCESS(status)) {
 		goto out;
@@ -193,9 +189,6 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 out:
 	if (controllerLocked)
 		SpbUnlockController(&pDevice->SpbContext);
-
-
-	pDevice->LastTransferTick = GetTickCount64();
 
 	WdfWaitLockRelease(pDevice->IoLock);
 

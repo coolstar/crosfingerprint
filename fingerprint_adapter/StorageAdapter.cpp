@@ -404,7 +404,7 @@ StorageAdapterEraseDatabase(
         goto cleanup;
     }
 
-    if (Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
+    /*if (Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
         WINBIO_IDENTITY Identity = { 0 };
         Identity.Type = WINBIO_ID_TYPE_WILDCARD;
         Identity.Value.Wildcard = WINBIO_IDENTITY_WILDCARD;
@@ -417,7 +417,7 @@ StorageAdapterEraseDatabase(
         if (!DeleteFile(FilePath)) {
             hr = HRESULT_FROM_WIN32(GetLastError());
         }
-    }
+    }*/
 
 cleanup:
     return hr;

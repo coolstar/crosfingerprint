@@ -281,34 +281,15 @@ HRESULT SyncDatabaseToMCU(PWINBIO_PIPELINE Pipeline) {
 
         for (int i = 0; i < storageContext->Database.size(); i++) {
             CRFP_STORAGE_RECORD record = storageContext->Database[i];
-            for (int entry_retries = 0; entry_retries < 10; entry_retries++) {
-                DebugLog("\tUploading entry %d (attempt %d)\n", i, entry_retries + 1);
-                hr = UploadTemplate(Pipeline, record.TemplateData, record.TemplateSize);
-                if (FAILED(hr)) {
-                    DebugLog("Failed to upload template %d\n", i);
-                }
-                if (SUCCEEDED(hr)) {
-                    break;
-                }
+            DebugLog("\tUploading entry %d\n", i);
+            hr = UploadTemplate(Pipeline, record.TemplateData, record.TemplateSize);
+            if (FAILED(hr)) {
+                continue;
             }
         }
 
         if (SUCCEEDED(hr)) {
-            struct ec_response_fp_info info;
-            for (int tries = 1; tries <= 10; tries++) {
-                hr = ec_command(Pipeline, EC_CMD_FP_INFO, 1, NULL, 0, &info, sizeof(struct ec_response_fp_info));
-                if (hr != 0) {
-                    Sleep(500);
-                }
-                else {
-                    break;
-                }
-            }
-
-            DebugLog("Max Templates: %d, Valid Templates: %d\n", info.template_max, info.template_valid);
-
-            if (info.template_valid == storageContext->Database.size())
-                break;
+            break;
         }
     }
 

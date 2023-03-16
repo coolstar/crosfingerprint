@@ -397,17 +397,26 @@ SensorAdapterReset(
     DWORD BytesReturned;
 
     WINBIO_DIAGNOSTICS Diag = { 0 };
-    if (!DeviceIoControl(Pipeline->SensorHandle,
-        IOCTL_BIOMETRIC_GET_SENSOR_STATUS,
-        NULL,
-        0,
-        &Diag,
-        sizeof(WINBIO_DIAGNOSTICS),
-        &BytesReturned,
-        NULL)) {
-        DWORD LastError = GetLastError();
-        DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-        return HRESULT_FROM_WIN32(LastError);
+    while (TRUE) {
+        if (!DeviceIoControl(Pipeline->SensorHandle,
+            IOCTL_BIOMETRIC_GET_SENSOR_STATUS,
+            NULL,
+            0,
+            &Diag,
+            sizeof(WINBIO_DIAGNOSTICS),
+            &BytesReturned,
+            NULL)) {
+            DWORD LastError = GetLastError();
+            if (LastError == ERROR_CANCELLED || LastError == ERROR_OPERATION_ABORTED) {
+                return WINBIO_E_CANCELED;
+            }
+            else {
+                return HRESULT_FROM_WIN32(LastError);
+            }
+        }
+        if (BytesReturned != 4) {
+            break;
+        }
     }
     if (FAILED(Diag.WinBioHresult)) {
         DebugLog("IOCTL_BIOMETRIC_GET_SENSOR_STATUS errored 0x%x\n", Diag.WinBioHresult);

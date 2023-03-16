@@ -147,7 +147,25 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
 
     int tries = 20;
 
-    HRESULT hr = ec_command(Pipeline, EC_CMD_FP_CONTEXT, 1, &p, sizeof(p), NULL, 0);
+    struct ec_params_fp_mode mode_p;
+    struct ec_response_fp_mode mode_r;
+
+    mode_p.mode = 0;
+
+    HRESULT hr = ec_command(Pipeline, EC_CMD_FP_MODE, 0, &mode_p, sizeof(mode_p), &mode_r, sizeof(mode_r));
+    if (FAILED(hr)) {
+        DebugLog("Reset FP Context (set fp mode): %d\n", hr);
+        goto cleanup;
+    }
+
+    DebugLog("Reset FP Context (read fp mode): 0x%x\n", mode_r.mode);
+
+    if ((mode_r.mode & (FP_MODE_RESET_SENSOR | FP_MODE_SENSOR_MAINTENANCE)) != 0) {
+        DebugLog("Waiting for sensor reset / maintenance\n");
+        Sleep(100);
+    }
+
+    hr = ec_command(Pipeline, EC_CMD_FP_CONTEXT, 1, &p, sizeof(p), NULL, 0);
     if (FAILED(hr)) {
         DebugLog("Reset FP Context (async): %d\n", hr);
         goto cleanup;
@@ -210,11 +228,19 @@ HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 template
             p->size |= FP_TEMPLATE_COMMIT;
         RtlCopyMemory(p->data, buffer + offset, tlen);
 
-        hr = ec_command(Pipeline, EC_CMD_FP_TEMPLATE, 0, p,
-            tlen + offsetof(struct ec_params_fp_template, data),
-            NULL, 0);
-        if (FAILED(hr))
+        for (int tries = 0; tries < 3; tries++) {
+            hr = ec_command(Pipeline, EC_CMD_FP_TEMPLATE, 0, p,
+                tlen + offsetof(struct ec_params_fp_template, data),
+                NULL, 0);
+            if (SUCCEEDED(hr)) {
+                DebugLog("success\n");
+                break;
+            }
+        }
+        if (FAILED(hr)) {
+            DebugLog("failed\n");
             break;
+        }
         offset += tlen;
     }
     if (FAILED(hr)) {
