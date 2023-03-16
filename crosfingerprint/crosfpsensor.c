@@ -10,29 +10,16 @@ NTSTATUS CrosFPSensorStatus
 	PWINBIO_SENSOR_STATUS sensorMode
 )
 {
-	struct ec_params_fp_mode p;
-	struct ec_response_fp_mode r;
-	NTSTATUS status;
-
-	p.mode = FP_MODE_DONT_CHANGE;
-
-	status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
-	if (!NT_SUCCESS(status)) {
-		return status;
-	}
+	NTSTATUS status = STATUS_SUCCESS;
 
 	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
-		"FP Mode: 0x%x, Calibrated? %d\n", r.mode, devContext->DeviceCalibrated);
+		"Calibrated? %d\n", devContext->DeviceCalibrated);
 
 	if (!devContext->DeviceCalibrated) {
 		*sensorMode = WINBIO_SENSOR_NOT_CALIBRATED;
 	}
 	else {
 		*sensorMode = WINBIO_SENSOR_READY;
-		if (r.mode & FP_MODE_SENSOR_MAINTENANCE)
-			*sensorMode = WINBIO_SENSOR_BUSY;
-		else if (r.mode & FP_MODE_ANY_CAPTURE)
-			*sensorMode = WINBIO_SENSOR_READY;
 	}
 	return status;
 }

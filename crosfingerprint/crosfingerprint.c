@@ -55,9 +55,12 @@ BOOLEAN OnInterruptIsr(
 
 	BOOLEAN ret = true;
 	NTSTATUS status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_GET_B, 0, NULL, 0, (UINT8*)&r, sizeof(r));
+	if (!NT_SUCCESS(status)) {
+		goto out;
+	}
 
 	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-		"Got event!\n");
+		"Got event 0x%x!\n", r.mask);
 
 	struct ec_params_host_event_mask p;
 	p.mask = r.mask;
@@ -67,9 +70,9 @@ BOOLEAN OnInterruptIsr(
 		goto out;
 	}
 
-	WdfInterruptQueueDpcForIsr(Interrupt);
 out:
-	return ret;
+	WdfInterruptQueueDpcForIsr(Interrupt);
+	return true;
 }
 
 void OnInterruptDpc
@@ -109,7 +112,7 @@ void OnInterruptDpc
 		}
 		else {
 			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-				"Type %d MKBP!\n", event.event_type);
+				"Type %d MKBP!\n", event_type);
 		}
 
 		ec_has_more_events = ((event.event_type & EC_MKBP_HAS_MORE_EVENTS) == EC_MKBP_HAS_MORE_EVENTS);
