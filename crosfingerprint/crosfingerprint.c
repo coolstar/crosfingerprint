@@ -67,31 +67,37 @@ BOOLEAN OnInterruptIsr(
 		goto out;
 	}
 
-	struct ec_response_get_next_event event = { 0 };
-	status = cros_ec_command(pDevice, EC_CMD_GET_NEXT_EVENT, 0, NULL, 0, (UINT8*)&event, sizeof(event));
-	if (!NT_SUCCESS(status)) {
-		goto out;
-	}
-
-	if (event.event_type == EC_MKBP_EVENT_FINGERPRINT) {
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-			"Fingerprint MKBP! 0x%x\n", event.data.fp_events);
-
-		CompleteFPRequest(pDevice, event.data.fp_events);
-	}
-	else if (event.event_type == EC_MKBP_EVENT_HOST_EVENT) {
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-			"Host Event MKBP %d!\n", event.data.host_event);
-
-		if (event.data.host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_INTERFACE_READY)) {
-			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-				"Host Event Ready!\n");
-			pDevice->DeviceReady = TRUE;
+	BOOLEAN ec_has_more_events = TRUE;
+	while (ec_has_more_events) {
+		struct ec_response_get_next_event event = { 0 };
+		status = cros_ec_command(pDevice, EC_CMD_GET_NEXT_EVENT, 0, NULL, 0, (UINT8*)&event, sizeof(event));
+		if (!NT_SUCCESS(status)) {
+			goto out;
 		}
-	}
-	else {
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-			"Type %d MKBP!\n", event.event_type);
+
+		UINT8 event_type = event.event_type & EC_MKBP_EVENT_TYPE_MASK;
+		if (event_type == EC_MKBP_EVENT_FINGERPRINT) {
+			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+				"Fingerprint MKBP! 0x%x\n", event.data.fp_events);
+
+			CompleteFPRequest(pDevice, event.data.fp_events);
+		}
+		else if (event_type == EC_MKBP_EVENT_HOST_EVENT) {
+			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+				"Host Event MKBP %d!\n", event.data.host_event);
+
+			if (event.data.host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_INTERFACE_READY)) {
+				CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+					"Host Event Ready!\n");
+				pDevice->DeviceReady = TRUE;
+			}
+		}
+		else {
+			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
+				"Type %d MKBP!\n", event.event_type);
+		}
+
+		ec_has_more_events = ((event.event_type & EC_MKBP_HAS_MORE_EVENTS) == EC_MKBP_HAS_MORE_EVENTS);
 	}
 
 	status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_GET_B, 0, NULL, 0, (UINT8*)&r, sizeof(r));
