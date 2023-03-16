@@ -329,6 +329,7 @@ Status
 	}
 	else {
 		DebugLog("EC Command failed with status %x\n", status);
+		return status;
 	}
 
 	struct ec_response_get_protocol_info info;
@@ -341,6 +342,7 @@ Status
 	}
 	else {
 		DebugLog("EC Command failed with status %x\n", status);
+		return status;
 	}
 
 	pDevice->DeviceReady = FALSE;
