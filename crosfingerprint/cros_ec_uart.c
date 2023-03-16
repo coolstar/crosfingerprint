@@ -54,8 +54,6 @@ NTSTATUS cros_ec_pkt_xfer_uart(
 		goto out;
 	}
 
-	Sleep(500);
-
 	status = UartRead(&pDevice->UartContext, din, din_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
