@@ -67,6 +67,21 @@ BOOLEAN OnInterruptIsr(
 		goto out;
 	}
 
+	WdfInterruptQueueDpcForIsr(Interrupt);
+out:
+	return ret;
+}
+
+void OnInterruptDpc
+(
+	WDFINTERRUPT Interrupt,
+	WDFOBJECT AssociatedObject
+)
+{
+	WDFDEVICE Device = WdfInterruptGetDevice(Interrupt);
+	PCROSFP_CONTEXT pDevice = GetDeviceContext(Device);
+	NTSTATUS status;
+
 	BOOLEAN ec_has_more_events = TRUE;
 	while (ec_has_more_events) {
 		struct ec_response_get_next_event event = { 0 };
@@ -100,12 +115,8 @@ BOOLEAN OnInterruptIsr(
 		ec_has_more_events = ((event.event_type & EC_MKBP_HAS_MORE_EVENTS) == EC_MKBP_HAS_MORE_EVENTS);
 	}
 
-	status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_GET_B, 0, NULL, 0, (UINT8*)&r, sizeof(r));
-	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_INIT,
-		"Interrupt mask (end) 0x%x!\n", r.mask);
-
 out:
-	return ret;
+	return;
 }
 
 NTSTATUS
@@ -194,7 +205,7 @@ Status
 			WDF_INTERRUPT_CONFIG_INIT(
 				&interruptConfig,
 				OnInterruptIsr,
-				NULL);
+				OnInterruptDpc);
 			interruptConfig.PassiveHandling = TRUE;
 			interruptConfig.InterruptRaw = pDescriptorRaw;
 			interruptConfig.InterruptTranslated = pDescriptor;
