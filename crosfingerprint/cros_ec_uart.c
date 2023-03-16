@@ -13,6 +13,8 @@ NTSTATUS cros_ec_pkt_xfer_uart(
 	unsigned int dout_len = sizeof(struct ec_host_request) + msg->OutSize;
 	unsigned int din_len = sizeof(struct ec_host_response) + msg->InSize;
 
+	WdfWaitLockAcquire(pDevice->IoLock, NULL);
+
 	UINT8* dout = malloc(dout_len);
 	UINT8* din = malloc(din_len);
 	if (!dout || !din) {
@@ -108,6 +110,8 @@ out:
 	if (din) {
 		free(din);
 	}
+
+	WdfWaitLockRelease(pDevice->IoLock);
 
 	return status;
 }

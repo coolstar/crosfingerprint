@@ -59,6 +59,8 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 
 	unsigned int dout_len = sizeof(struct ec_host_request) + msg->OutSize;
 	unsigned int din_len = sizeof(struct ec_host_response) + msg->InSize;
+	
+	WdfWaitLockAcquire(pDevice->IoLock, NULL);
 
 	UINT8* dout = malloc(dout_len);
 	UINT8* din = malloc(din_len);
@@ -69,8 +71,6 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 
 	RtlZeroMemory(dout, dout_len);
 	RtlZeroMemory(din, din_len);
-
-	WdfWaitLockAcquire(pDevice->IoLock, NULL);
 
 	status = SpbLockController(&pDevice->SpbContext);
 	if (!NT_SUCCESS(status)) {
@@ -190,8 +190,6 @@ out:
 	if (controllerLocked)
 		SpbUnlockController(&pDevice->SpbContext);
 
-	WdfWaitLockRelease(pDevice->IoLock);
-
 	if (dout) {
 		free(dout);
 	}
@@ -199,6 +197,8 @@ out:
 	if (din) {
 		free(din);
 	}
+
+	WdfWaitLockRelease(pDevice->IoLock);
 
 	return status;
 }
