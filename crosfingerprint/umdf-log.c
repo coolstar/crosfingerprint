@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*void DebugLog(const char* format, ...) {
+/*void DebugLog_internal(const char* format, ...) {
 	HANDLE logFile = CreateFile(L"C:\\Windows\\Temp\\crfp-log.txt",
 			FILE_APPEND_DATA,
 			0,

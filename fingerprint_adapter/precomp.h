@@ -61,8 +61,19 @@ NOTES:
 #define ARGUMENT_PRESENT(x) ((x) != NULL)
 #endif
 
-#if 0
-void DebugLog(const char* format, ...);
+#if 1
+#include <time.h>
+
+void DebugLog_internal(const char* format, ...);
+
+#define DebugLog(fmt, ...) \
+do {\
+time_t mytime = time(NULL); \
+char time_str[26];\
+ctime_s(time_str, sizeof(time_str), &mytime);\
+time_str[strlen(time_str) - 1] = '\0'; \
+DebugLog_internal("[%s] " fmt, time_str, __VA_ARGS__);\
+} while(0)
 #else
 #define DebugLog(x, ...)
 #endif
