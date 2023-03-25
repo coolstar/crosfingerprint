@@ -26,7 +26,7 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <SampleGuid>{9263013E-19E1-41D9-B085-8892CE56B9BB}</SampleGuid>
-    <ProjectName>FingerprintAdapter</ProjectName>
+    <ProjectName>CrosFingerprintAdapter</ProjectName>
     <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -84,16 +84,16 @@
   </ImportGroup>
   <ItemGroup Label="WrappedTaskItems" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>FingerprintAdapter</TargetName>
+    <TargetName>CrosFingerprintAdapter</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>FingerprintAdapter</TargetName>
+    <TargetName>CrosFingerprintAdapter</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <TargetName>FingerprintAdapter</TargetName>
+    <TargetName>CrosFingerprintAdapter</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <TargetName>FingerprintAdapter</TargetName>
+    <TargetName>CrosFingerprintAdapter</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -220,7 +220,7 @@
     <ClCompile Include="RecordDatabase.cpp" />
     <ClCompile Include="SensorAdapter.cpp" />
     <ClCompile Include="StorageAdapter.cpp" />
-    <ResourceCompile Include="FingerprintAdapter.rc" />
+    <ResourceCompile Include="CrosFingerprintAdapter.rc" />
   </ItemGroup>
   <ItemGroup>
     <Inf Exclude="@(Inf)" Include="*.inf" />

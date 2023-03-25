@@ -31,7 +31,7 @@ PnpLockdown=1
 
 [SourceDisksFiles]
 crosfingerprint.dll=1
-FingerprintAdapter.dll=1 ; Vendor engine adapter
+CrosFingerprintAdapter.dll=1 ; Vendor engine adapter
 
 [SourceDisksNames]
 1 = %DiskName%
@@ -82,9 +82,9 @@ HKR,,"DefaultIdleTimeout",0x00010001,5000
 HKR,WinBio\Configurations,DefaultConfiguration,,"0"
 HKR,WinBio\Configurations\0,SensorMode,0x10001,2                                ; Basic - 1, Advanced - 2
 HKR,WinBio\Configurations\0,SystemSensor,0x10001,1                              ; UAC/Winlogon - 1
-HKR,WinBio\Configurations\0,SensorAdapterBinary,,"FingerprintAdapter.DLL"		; Vendor Engine
-HKR,WinBio\Configurations\0,EngineAdapterBinary,,"FingerprintAdapter.DLL"       ; Vendor engine
-HKR,WinBio\Configurations\0,StorageAdapterBinary,,"FingerprintAdapter.DLL"    ; Windows built-in storage adapter - see StorageAdapter.dll for sample vendor adapter
+HKR,WinBio\Configurations\0,SensorAdapterBinary,,"CrosFingerprintAdapter.DLL"		; Vendor Engine
+HKR,WinBio\Configurations\0,EngineAdapterBinary,,"CrosFingerprintAdapter.DLL"       ; Vendor engine
+HKR,WinBio\Configurations\0,StorageAdapterBinary,,"CrosFingerprintAdapter.DLL"    ; Windows built-in storage adapter - see StorageAdapter.dll for sample vendor adapter
 HKR,WinBio\Configurations\0,DatabaseId,,"B50D01D8-C2B1-11ED-A508-00155DDCFFEC"  ; Unique database GUID
 
 [DatabaseAddReg]
@@ -108,11 +108,11 @@ WinBioAdapterCopy=11,WinBioPlugins ; copy to \Windows\System32\WinBioPlugins
 crosfingerprint.dll
 
 [WinBioAdapterCopy]
-FingerprintAdapter.dll
+CrosFingerprintAdapter.dll
 
 [SignatureAttributes]
 crosfingerprint.dll = SignatureAttributes.WindowsHello
-FingerprintAdapter.dll = SignatureAttributes.WindowsHello
+CrosFingerprintAdapter.dll = SignatureAttributes.WindowsHello
 
 [SignatureAttributes.WindowsHello]
 WindowsHello = true
