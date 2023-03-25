@@ -98,14 +98,12 @@ HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 te
 
     while (size) {
         stride = min(ec_max_insize, size);
-        DebugLog("Downloading (%d bytes in stride)... ", stride);
         p.size = stride;
         num_attempts = 0;
         while (num_attempts < max_attempts) {
             num_attempts++;
             hr = ec_command(Pipeline, EC_CMD_FP_FRAME, 0, &p, sizeof(p), ptr, stride);
             if (SUCCEEDED(hr)) {
-                DebugLog("success\n");
                 break;
             }
             else if (hr == -EC_RES_ACCESS_DENIED) {
@@ -219,7 +217,6 @@ HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 template
 
     while (size) {
         UINT32 tlen = min(max_chunk, size);
-        DebugLog("Uploading (%d bytes in stride)... ", tlen);
 
         p->offset = offset;
         p->size = tlen;
@@ -233,7 +230,6 @@ HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 template
                 tlen + offsetof(struct ec_params_fp_template, data),
                 NULL, 0);
             if (SUCCEEDED(hr)) {
-                DebugLog("success\n");
                 break;
             }
         }

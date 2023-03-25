@@ -976,19 +976,17 @@ StorageAdapterGetCurrentRecord(
     }
 
     if (Pipeline->StorageContext->DatabaseCursor > Pipeline->StorageContext->Database.size()) {
-        Pipeline->StorageContext->DatabaseCursor = Pipeline->StorageContext->Database.size() - 1;
+        Pipeline->StorageContext->DatabaseCursor = (ULONG)(Pipeline->StorageContext->Database.size() - 1);
     }
 
     PCRFP_STORAGE_RECORD record = &Pipeline->StorageContext->Database[Pipeline->StorageContext->DatabaseCursor];
 
     DebugLog("[Storage] Got identity type %d\n", record->Identity.Type);
 
-    ULONG index = (ULONG)Pipeline->StorageContext->DatabaseCursor;
-
     RtlZeroMemory(RecordContents, sizeof(*RecordContents));
     RecordContents->Identity = &record->Identity;
     RecordContents->SubFactor = record->SubFactor;
-    RecordContents->IndexVector = &index;
+    RecordContents->IndexVector = &Pipeline->StorageContext->DatabaseCursor;
     RecordContents->IndexElementCount = 1;
     RecordContents->TemplateBlob = record->TemplateData;
     RecordContents->TemplateBlobSize = record->TemplateSize;

@@ -76,7 +76,7 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
     UINT32 MaxFingers;
     UINT32 TemplateSize;
 
-    size_t DatabaseCursor;
+    ULONG DatabaseCursor;
     std::vector<CRFP_STORAGE_RECORD> Database;
 
 } WINIBIO_STORAGE_CONTEXT, *PWINIBIO_STORAGE_CONTEXT;
