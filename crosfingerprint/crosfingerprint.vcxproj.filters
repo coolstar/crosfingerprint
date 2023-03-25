@@ -39,4 +39,7 @@
       <UniqueIdentifier>{f177dfe7-0511-4930-ac46-660d27f49ba1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="crosfingerprint.rc" />
+  </ItemGroup>
 </Project>

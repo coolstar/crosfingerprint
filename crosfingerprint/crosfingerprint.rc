@@ -1,15 +1,10 @@
 #include <windows.h>
-#include "resource.h"
 
-//
-// TODO: Change the file description and file names to match your binary.
-//
-
-#define VER_FILETYPE                VFT_DLL
-#define VER_FILESUBTYPE             VFT_UNKNOWN
-#define VER_FILEDESCRIPTION_STR     "Chromebook Fingerprint Adapter"
-#define VER_INTERNALNAME_STR        "FingerprintAdapter"
-#define VER_ORIGINALFILENAME_STR    "FingerprintAdapter.dll"
+#define VER_FILETYPE                VFT_DRV
+#define VER_FILESUBTYPE             VFT2_DRV_INSTALLABLE
+#define VER_FILEDESCRIPTION_STR     "Chromebook Fingerprint Driver"
+#define VER_INTERNALNAME_STR        "crosfingerprint.dll"
+#define VER_ORIGINALFILENAME_STR    "crosfingerprint.dll"
 
 #define VER_LEGALCOPYRIGHT_YEARS    "2023"
 #define VER_LEGALCOPYRIGHT_STR      "Copyright (C) " VER_LEGALCOPYRIGHT_YEARS " CoolStar."
