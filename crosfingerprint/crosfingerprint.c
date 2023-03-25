@@ -53,7 +53,6 @@ BOOLEAN OnInterruptIsr(
 
 	struct ec_response_host_event_mask r;
 
-	BOOLEAN ret = true;
 	NTSTATUS status = cros_ec_command(pDevice, EC_CMD_HOST_EVENT_GET_B, 0, NULL, 0, (UINT8*)&r, sizeof(r));
 	if (!NT_SUCCESS(status)) {
 		goto out;
