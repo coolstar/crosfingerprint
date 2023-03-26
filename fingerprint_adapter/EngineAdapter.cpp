@@ -40,6 +40,7 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "EngineAdapter.h"
+#include "StorageAdapter.h"
 #include <stdlib.h>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -497,7 +498,18 @@ EngineAdapterQuerySampleHint(
 
     DebugLog("Called EngineAdapterQuerySampleHint\n");
 
-    *SampleHint = 5;
+    PWINIBIO_STORAGE_CONTEXT storageContext = Pipeline->StorageContext;
+    if (!storageContext) {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (storageContext->FingerWidth > (storageContext->FingerHeight * 3))
+        *SampleHint = 10;
+    else if (storageContext->FingerHeight > (storageContext->FingerWidth * 3))
+        *SampleHint = 10;
+    else
+        *SampleHint = 5;
 
 cleanup:
     return hr;

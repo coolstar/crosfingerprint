@@ -73,6 +73,8 @@ typedef struct _CRFP_DATABASE_FILE_HEADER {
 //
 ///////////////////////////////////////////////////////////////////////////////
 typedef struct _WINIBIO_STORAGE_CONTEXT {
+    UINT16 FingerWidth;
+    UINT16 FingerHeight;
     UINT32 MaxFingers;
     UINT32 TemplateSize;
 

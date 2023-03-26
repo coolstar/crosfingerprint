@@ -303,6 +303,8 @@ StorageAdapterAttach(
 
     DebugLog("Max Templates: %d, Template Size: %d, Valid Templates: %d, Template Version: %d\n", info.template_max, info.template_size, info.template_valid, info.template_version);
 
+    newContext->FingerHeight = info.height;
+    newContext->FingerWidth = info.width;
     newContext->MaxFingers = info.template_max;
     newContext->TemplateSize = info.template_size;
 cleanup:
