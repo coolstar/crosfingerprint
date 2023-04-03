@@ -16,6 +16,8 @@
     <ClCompile Include="uart.c">
       <Filter>UART</Filter>
     </ClCompile>
+    <ClCompile Include="crosfpsensor.c" />
+    <ClCompile Include="cros_ec_common.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crosfingerprint.h" />
@@ -27,6 +29,8 @@
     <ClInclude Include="uart.h">
       <Filter>UART</Filter>
     </ClInclude>
+    <ClInclude Include="crosfpdata.h" />
+    <ClInclude Include="winbio_km.h" />
   </ItemGroup>
   <ItemGroup>
     <Inf Include="crosfingerprint.inf" />
