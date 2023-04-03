@@ -30,43 +30,31 @@ PnpLockdown=1
 %DeviceName%=CrosFp_Device, ACPI\CRFP0001; UART fingerprint
 
 [SourceDisksFiles]
-crosfingerprint.dll=1
+crosfingerprint.sys=1
 CrosFingerprintAdapter.dll=1 ; Vendor engine adapter
 
 [SourceDisksNames]
 1 = %DiskName%
 
-; =================== UMDF Device ==================================
+; =================== KMDF Device ==================================
 
 [CrosFp_Device.NT]
-CopyFiles=UMDriverCopy, WinBioAdapterCopy
+CopyFiles=KMDriverCopy, WinBioAdapterCopy
 
 [CrosFp_Device.NT.hw]
 AddReg=CrosFP_Device_AddReg
 AddReg=DriverPlugInAddReg, DatabaseAddReg
 
 [CrosFp_Device.NT.Services]
-AddService=WUDFRd,0x000001fa,WUDFRD_ServiceInstall
+AddService = crosfingerprint,%SPSVCINST_ASSOCSERVICE%, CrosFp_Service_Inst
 
-[CrosFp_Device.NT.CoInstallers]
-AddReg=CoInstallers_AddReg
-
-[CrosFp_Device.NT.Wdf]
-UmdfService=crosfingerprint, crosfingerprint_Install
-UmdfServiceOrder=crosfingerprint
-UmdfHostProcessSharing=ProcessSharingDisabled
-
-[crosfingerprint_Install]
-UmdfLibraryVersion=$UMDFVERSION$
-ServiceBinary=%12%\UMDF\crosfingerprint.dll
-
-; -------------- crosfingerprint driver install sections
-[WUDFRD_ServiceInstall]
-DisplayName = %WudfRdDisplayName%
-ServiceType = 1
-StartType = 3
-ErrorControl = 1
-ServiceBinary = %12%\WUDFRd.sys
+[CrosFp_Service_Inst]
+DisplayName    = %DeviceName%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START 
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\crosfingerprint.sys
+LoadOrderGroup = Base
 
 [CrosFP_Device_AddReg]
 HKR,,"DeviceCharacteristics",0x10001,0x0100     ; Use same security checks on relative opens
@@ -97,21 +85,18 @@ HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A5
 HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},FilePath,,""
 HKLM,System\CurrentControlSet\Services\WbioSrvc\Databases\{B50D01D8-C2B1-11ED-A508-00155DDCFFEC},ConnectionString,,""
 
-[CoInstallers_AddReg]
-HKR,,CoInstallers32,0x00010000,"WUDFCoinstaller.dll"
-
 [DestinationDirs]
-UMDriverCopy=12,UMDF ; copy to drivers\umdf
+KMDriverCopy=12 ; copy to drivers\
 WinBioAdapterCopy=11,WinBioPlugins ; copy to \Windows\System32\WinBioPlugins
 
-[UMDriverCopy]
-crosfingerprint.dll
+[KMDriverCopy]
+crosfingerprint.sys
 
 [WinBioAdapterCopy]
 CrosFingerprintAdapter.dll
 
 [SignatureAttributes]
-crosfingerprint.dll = SignatureAttributes.WindowsHello
+crosfingerprint.sys = SignatureAttributes.WindowsHello
 CrosFingerprintAdapter.dll = SignatureAttributes.WindowsHello
 
 [SignatureAttributes.WindowsHello]
@@ -120,6 +105,7 @@ WindowsHello = true
 ; =================== Generic ==================================
 
 [Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
 ManufacturerName                 = "CoolStar"
 DiskName                = "CrosFP Installation Disk #1"
 WudfRdDisplayName="Windows Driver Foundation - User-mode Driver Framework Reflector"
