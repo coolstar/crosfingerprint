@@ -51,6 +51,10 @@ BOOLEAN OnInterruptIsr(
 	WDFDEVICE Device = WdfInterruptGetDevice(Interrupt);
 	PCROSFP_CONTEXT pDevice = GetDeviceContext(Device);
 
+	if (!pDevice->DevicePowered) {
+		return FALSE;
+	}
+
 	struct ec_response_host_event_mask r;
 	BOOLEAN ec_has_more_events = TRUE;
 
@@ -321,6 +325,7 @@ Status
 	PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
 	NTSTATUS status = STATUS_SUCCESS;
 
+	pDevice->DevicePowered = TRUE;
 	pDevice->DeviceCalibrated = FALSE;
 
 	struct ec_response_get_version r;
@@ -388,8 +393,11 @@ Status
 	UNREFERENCED_PARAMETER(FxDevice);
 	UNREFERENCED_PARAMETER(FxPreviousState);
 
-	//PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
+	PCROSFP_CONTEXT pDevice = GetDeviceContext(FxDevice);
 	NTSTATUS status = STATUS_SUCCESS;
+
+	pDevice->DevicePowered = FALSE;
+	pDevice->DeviceCalibrated = FALSE;
 
 	return status;
 }

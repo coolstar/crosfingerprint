@@ -103,6 +103,7 @@ typedef struct _CROSFP_CONTEXT
     UINT16     TemplateMax;
     UINT16     ValidTemplates;
 
+    BOOLEAN DevicePowered;
     BOOLEAN DeviceReady;
     BOOLEAN DeviceCalibrated;
 
@@ -192,6 +193,10 @@ NTSTATUS cros_ec_command(
 #if 0
 
 #ifndef _KERNEL_MODE
+#include <time.h>
+#ifdef __cplusplus
+extern "C"
+#endif
 void DebugLog_internal(const char* format, ...);
 
 #define DebugLog(fmt, ...) \
