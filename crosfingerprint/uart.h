@@ -20,7 +20,13 @@ Revision History:
 
 #pragma once
 
-#include <Windows.h>
+#ifndef _KERNEL_MODE
+// This is a user-mode driver
+#include <windows.h>
+#else
+// This is a kernel-mode driver
+#include <wdm.h>
+#endif
 #include <wdf.h>
 
 #define RESHUB_USE_HELPER_ROUTINES

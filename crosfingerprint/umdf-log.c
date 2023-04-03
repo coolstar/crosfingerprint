@@ -1,3 +1,4 @@
+#ifndef _KERNEL_MODE
 #include <Windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,3 +30,4 @@
 	free(logStor);
 	CloseHandle(logFile);
 }*/
+#endif

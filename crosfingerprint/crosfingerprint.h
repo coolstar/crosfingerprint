@@ -5,19 +5,33 @@
 #pragma warning(disable:4201)  // suppress nameless struct/union warning
 #pragma warning(disable:4214)  // suppress bit field types other than int warning
 #include <initguid.h>
-#include <Windows.h>
+#ifndef _KERNEL_MODE
+// This is a user-mode driver
+#include <windows.h>
+#else
+// This is a kernel-mode driver
+#include <wdm.h>
+#endif
 
 #pragma warning(default:4200)
 #pragma warning(default:4201)
 #pragma warning(default:4214)
 #include <wdf.h>
 
+#ifndef _KERNEL_MODE
 #include <winbio_types.h>
 #include <winbio_err.h>
 #include <winbio_ioctl.h>
 
 #include <stdint.h>
 #include <stdlib.h>
+#else
+#define DWORD UINT32
+#define PDWORD DWORD*
+#define S_OK 0
+#include "winbio_km.h"
+#define HRESULT_FROM_NT(x)      ((HRESULT) ((x) | 0x10000000))
+#endif
 
 #include "spb.h"
 #include "uart.h"
@@ -167,6 +181,8 @@ NTSTATUS cros_ec_command(
 #define DBG_IOCTL 4
 
 #if 0
+
+#ifndef _KERNEL_MODE
 void DebugLog_internal(const char* format, ...);
 
 #define DebugLog(fmt, ...) \
@@ -177,6 +193,9 @@ ctime_s(time_str, sizeof(time_str), &mytime);\
 time_str[strlen(time_str) - 1] = '\0'; \
 DebugLog_internal("[%s] " fmt, time_str, __VA_ARGS__);\
 } while(0)
+#else
+#define DebugLog DbgPrint
+#endif
 
 #define CrosFPPrint(dbglevel, dbgcatagory, fmt, ...) {          \
     if (CrosFPDebugLevel <= dbglevel &&                         \
