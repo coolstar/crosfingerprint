@@ -47,7 +47,7 @@ NTSTATUS cros_ec_pkt_xfer_uart(
 		request->checksum = -csum;
 	}
 
-	status = UartWrite(&pDevice->UartContext, dout, dout_len);
+	status = UartWrite(&pDevice->IoContext.UartContext, dout, dout_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
 			DEBUG_LEVEL_ERROR,
@@ -56,7 +56,7 @@ NTSTATUS cros_ec_pkt_xfer_uart(
 		goto out;
 	}
 
-	status = UartRead(&pDevice->UartContext, din, din_len);
+	status = UartRead(&pDevice->IoContext.UartContext, din, din_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
 			DEBUG_LEVEL_ERROR,

@@ -1,5 +1,3 @@
-#include <winbio_ioctl.h>
-
 //
 // A container for biometric captured data.
 // OUT payload for IOCTL_BIOMETRIC_CAPTURE_DATA

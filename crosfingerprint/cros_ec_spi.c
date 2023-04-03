@@ -45,6 +45,13 @@
    */
 #define EC_SPI_RECOVERY_TIME_NS	(200 * 1000)
 
+#ifdef _KERNEL_MODE
+ULONG64 GetTickCount64() {
+	LARGE_INTEGER CurrentTime;
+	KeQuerySystemTime(&CurrentTime);
+	return CurrentTime.QuadPart;
+}
+#endif
 
 static ULONG CrosFPDebugLevel = 100;
 static ULONG CrosFPDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
@@ -72,7 +79,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 	RtlZeroMemory(dout, dout_len);
 	RtlZeroMemory(din, din_len);
 
-	status = SpbLockController(&pDevice->SpbContext);
+	status = SpbLockController(&pDevice->IoContext.SpbContext);
 	if (!NT_SUCCESS(status)) {
 		goto out;
 	}
@@ -100,7 +107,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 		request->checksum = -csum;
 	}
 
-	status = SpbWriteDataSynchronously(&pDevice->SpbContext, dout, dout_len);
+	status = SpbWriteDataSynchronously(&pDevice->IoContext.SpbContext, dout, dout_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
 			DEBUG_LEVEL_ERROR,
@@ -112,7 +119,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 	ULONGLONG Timeout = GetTickCount64() + EC_MSG_DEADLINE_MS;
 	while (TRUE) {
 		UINT8 byte = 0;
-		status = SpbReadDataSynchronously(&pDevice->SpbContext, &byte, sizeof(byte));
+		status = SpbReadDataSynchronously(&pDevice->IoContext.SpbContext, &byte, sizeof(byte));
 		if (!NT_SUCCESS(status)) {
 			break;
 		}
@@ -134,7 +141,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 		goto out;
 	}
 
-	status = SpbReadDataSynchronously(&pDevice->SpbContext, din, din_len);
+	status = SpbReadDataSynchronously(&pDevice->IoContext.SpbContext, din, din_len);
 	if (!NT_SUCCESS(status)) {
 		CrosFPPrint(
 			DEBUG_LEVEL_ERROR,
@@ -188,7 +195,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 
 out:
 	if (controllerLocked)
-		SpbUnlockController(&pDevice->SpbContext);
+		SpbUnlockController(&pDevice->IoContext.SpbContext);
 
 	if (dout) {
 		free(dout);

@@ -91,7 +91,7 @@ static NTSTATUS cros_ec_get_cmd_versions(PCROSFP_CONTEXT pDevice, UINT16 cmd, UI
  */
 BOOLEAN cros_ec_cmd_version_supported(PCROSFP_CONTEXT pDevice, UINT16 cmd, UINT8 ver)
 {
-	uint32_t mask = 0;
+	UINT32 mask = 0;
 
 	if (NT_SUCCESS(cros_ec_get_cmd_versions(pDevice, cmd, &mask)))
 		return false;

@@ -185,8 +185,8 @@ Status
 				if (fDataResourceFound == FALSE)
 				{
 					status = STATUS_SUCCESS;
-					pDevice->SpbContext.SpiResHubId.LowPart = pDescriptor->u.Connection.IdLowPart;
-					pDevice->SpbContext.SpiResHubId.HighPart = pDescriptor->u.Connection.IdHighPart;
+					pDevice->IoContext.SpbContext.SpiResHubId.LowPart = pDescriptor->u.Connection.IdLowPart;
+					pDevice->IoContext.SpbContext.SpiResHubId.HighPart = pDescriptor->u.Connection.IdHighPart;
 					pDevice->IoType = CROSFP_TYPESPI;
 					fDataResourceFound = TRUE;
 				}
@@ -196,8 +196,8 @@ Status
 				if (fDataResourceFound == FALSE)
 				{
 					status = STATUS_SUCCESS;
-					pDevice->UartContext.UartResHubId.LowPart = pDescriptor->u.Connection.IdLowPart;
-					pDevice->UartContext.UartResHubId.HighPart = pDescriptor->u.Connection.IdHighPart;
+					pDevice->IoContext.UartContext.UartResHubId.LowPart = pDescriptor->u.Connection.IdLowPart;
+					pDevice->IoContext.UartContext.UartResHubId.HighPart = pDescriptor->u.Connection.IdHighPart;
 					pDevice->IoType = CROSFP_TYPEUART;
 					fDataResourceFound = TRUE;
 				}
@@ -247,10 +247,10 @@ Status
 
 	switch (pDevice->IoType) {
 	case CROSFP_TYPESPI:
-		status = SpbTargetInitialize(FxDevice, &pDevice->SpbContext);
+		status = SpbTargetInitialize(FxDevice, &pDevice->IoContext.SpbContext);
 		break;
 	case CROSFP_TYPEUART:
-		status = UartTargetInitialize(FxDevice, &pDevice->UartContext);
+		status = UartTargetInitialize(FxDevice, &pDevice->IoContext.UartContext);
 		break;
 	default:
 		status = STATUS_INVALID_DEVICE_STATE;
@@ -293,10 +293,10 @@ Status
 
 	switch (pDevice->IoType) {
 	case CROSFP_TYPESPI:
-		SpbTargetDeinitialize(FxDevice, &pDevice->SpbContext);
+		SpbTargetDeinitialize(FxDevice, &pDevice->IoContext.SpbContext);
 		break;
 	case CROSFP_TYPEUART:
-		UartTargetDeinitialize(FxDevice, &pDevice->UartContext);
+		UartTargetDeinitialize(FxDevice, &pDevice->IoContext.UartContext);
 		break;
 	default:
 		status = STATUS_INVALID_DEVICE_STATE;

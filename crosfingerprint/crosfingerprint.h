@@ -11,6 +11,8 @@
 #else
 // This is a kernel-mode driver
 #include <wdm.h>
+#include <ntstrsafe.h>
+#define PDWORD DWORD*
 #endif
 
 #pragma warning(default:4200)
@@ -26,11 +28,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 #else
-#define DWORD UINT32
-#define PDWORD DWORD*
 #define S_OK 0
 #include "winbio_km.h"
 #define HRESULT_FROM_NT(x)      ((HRESULT) ((x) | 0x10000000))
+
+#define malloc(size) ExAllocatePoolZero(NonPagedPool, size, CROSFP_POOL_TAG);
+#define free ExFreePool
+
+#define Sleep(x) do { \
+LARGE_INTEGER Interval; \
+Interval.QuadPart = -x * 10 * 1000; \
+KeDelayExecutionThread(KernelMode, FALSE, &Interval); \
+} while (0);
 #endif
 
 #include "spb.h"
@@ -79,7 +88,7 @@ typedef struct _CROSFP_CONTEXT
     union {
         SPB_CONTEXT SpbContext;
         UART_CONTEXT UartContext;
-    };
+    } IoContext;
     UINT64 LastTransferTick;
 
 	WDFINTERRUPT Interrupt;
