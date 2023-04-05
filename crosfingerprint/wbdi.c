@@ -311,7 +311,7 @@ void CompleteFPRequest(
 
 		if (devContext->NextMode != FP_MODE_DEEPSLEEP) {
 			struct ec_params_fp_mode p;
-			p.mode = devContext->NextMode;
+			p.mode = devContext->NextMode & ~FP_MODE_FINGER_UP;
 
 			struct ec_response_fp_mode r;
 			NTSTATUS status = cros_ec_command(devContext, EC_CMD_FP_MODE, 0, &p, sizeof(p), &r, sizeof(r));
