@@ -92,6 +92,7 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
 
         struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)record->TemplateData;
         DebugLog("Template version: %d\n", metadata->struct_version);
+        UNREFERENCED_PARAMETER(metadata->struct_version);
     }
 
 cleanup:
@@ -179,6 +180,7 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
 
         struct ec_fp_template_encryption_metadata* metadata = (struct ec_fp_template_encryption_metadata*)record->TemplateData;
         DebugLog("Template version: %d\n", metadata->struct_version);
+        UNREFERENCED_PARAMETER(metadata->struct_version);
 
         if (!WriteFile(Pipeline->StorageHandle, record->TemplateData,
             record->TemplateSize,

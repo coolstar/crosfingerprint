@@ -61,7 +61,7 @@ NOTES:
 #define ARGUMENT_PRESENT(x) ((x) != NULL)
 #endif
 
-#if 1
+#if 0
 #include <time.h>
 
 void DebugLog_internal(const char* format, ...);
