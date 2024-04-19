@@ -478,8 +478,8 @@ SensorAdapterSetMode(
     }
 
     if (Mode != WINBIO_SENSOR_ADVANCED_MODE && Mode != WINBIO_SENSOR_SLEEP_MODE) {
-        DebugLog("SensorAdapterSetMode Not Impl!\n");
-        return E_NOTIMPL;
+        DebugLog("SensorAdapterSetMode Invalid Mode!\n");
+        return WINBIO_E_INVALID_SENSOR_MODE;
     }
 
     DebugLog("SensorAdapterSetMode Success!\n");
