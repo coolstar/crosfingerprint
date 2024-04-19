@@ -216,6 +216,9 @@ WbioQuerySensorInterface(
     _Out_ PWINBIO_SENSOR_INTERFACE *SensorInterface
     )
 {
+    if (!ARGUMENT_PRESENT(SensorInterface)) {
+        return E_POINTER;
+    }
     *SensorInterface = &g_SensorInterface;
     return S_OK;
 }

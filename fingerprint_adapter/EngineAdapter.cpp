@@ -284,6 +284,9 @@ WbioQueryEngineInterface(
     _Out_ PWINBIO_ENGINE_INTERFACE *EngineInterface
     )
 {
+    if (!ARGUMENT_PRESENT(EngineInterface)) {
+        return E_POINTER;
+    }
     *EngineInterface = &g_EngineInterface;
     return S_OK;
 }

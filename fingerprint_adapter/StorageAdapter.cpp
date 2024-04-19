@@ -249,6 +249,9 @@ WbioQueryStorageInterface(
     _Out_ PWINBIO_STORAGE_INTERFACE *StorageInterface
     )
 {
+    if (!ARGUMENT_PRESENT(StorageInterface)) {
+        return E_POINTER;
+    }
     *StorageInterface = &g_StorageInterface;
     return S_OK;
 }
