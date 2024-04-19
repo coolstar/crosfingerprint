@@ -204,7 +204,7 @@ CaptureFpData(
 			return status;
 		}
 
-		*payloadSize = sizeof(PCRFP_CAPTURE_DATA);
+		*payloadSize = sizeof(CRFP_CAPTURE_DATA);
 		WdfRequestSetInformation(Request, sizeof(DWORD));
 		return status;
 	}
