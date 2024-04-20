@@ -1061,18 +1061,23 @@ EngineAdapterControlUnit(
     _Out_ PULONG OperationStatus
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(SendBuffer) ||
+        !ARGUMENT_PRESENT(ReceiveBuffer) ||
+        !ARGUMENT_PRESENT(ReceiveDataSize) ||
+        !ARGUMENT_PRESENT(OperationStatus))
+    {
+        return E_POINTER;
+    }
+
     UNREFERENCED_PARAMETER(ControlCode);
-    UNREFERENCED_PARAMETER(SendBuffer);
     UNREFERENCED_PARAMETER(SendBufferSize);
-    UNREFERENCED_PARAMETER(ReceiveBuffer);
     UNREFERENCED_PARAMETER(ReceiveBufferSize);
-    UNREFERENCED_PARAMETER(ReceiveDataSize);
-    UNREFERENCED_PARAMETER(OperationStatus);
 
     DebugLog("Called EngineAdapterControlUnit\n");
 
-    return E_NOTIMPL;
+    return E_INVALIDARG;
 }
 //-----------------------------------------------------------------------------
 
