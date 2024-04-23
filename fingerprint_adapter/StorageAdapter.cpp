@@ -280,6 +280,12 @@ StorageAdapterAttach(
         goto cleanup;
     }
 
+    if (Pipeline->StorageContext != NULL ||
+        Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
     PWINIBIO_STORAGE_CONTEXT newContext = (PWINIBIO_STORAGE_CONTEXT)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(WINIBIO_STORAGE_CONTEXT));
     if (!newContext) {
         return E_OUTOFMEMORY;
@@ -348,7 +354,10 @@ StorageAdapterClearContext(
     _Inout_ PWINBIO_PIPELINE Pipeline
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
+    if (!ARGUMENT_PRESENT(Pipeline))
+    {
+        return E_POINTER;
+    }
 
     DebugLog("Called StorageAdapterClearContext\n");
 
@@ -369,20 +378,52 @@ StorageAdapterCreateDatabase(
     _In_ SIZE_T InitialSize
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(DatabaseId);
     UNREFERENCED_PARAMETER(Factor);
-    UNREFERENCED_PARAMETER(Format);
-    UNREFERENCED_PARAMETER(FilePath);
-    UNREFERENCED_PARAMETER(ConnectString);
     UNREFERENCED_PARAMETER(IndexElementCount);
     UNREFERENCED_PARAMETER(InitialSize);
 
-    UNREFERENCED_PARAMETER(Pipeline);
-
     DebugLog("Called StorageAdapterCreateDatabase. File Path: %ls\n", FilePath);
 
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(FilePath) ||
+        !ARGUMENT_PRESENT(DatabaseId) ||
+        !ARGUMENT_PRESENT(Format) ||
+        !ARGUMENT_PRESENT(ConnectString))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (Pipeline->StorageContext == NULL ||
+        Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    if (!PathFileExistsW(FilePath)) {
+        hr = WINBIO_E_DATABASE_CANT_CREATE;
+        goto cleanup;
+    }
+
+    HANDLE databaseFile = CreateFile(
+        FilePath,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL
+    );
+    if (databaseFile != INVALID_HANDLE_VALUE) {
+        hr = WINBIO_E_DATABASE_ALREADY_EXISTS;
+        CloseHandle(databaseFile);
+        goto cleanup;
+    }
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
@@ -395,15 +436,14 @@ StorageAdapterEraseDatabase(
     _In_ LPCWSTR ConnectString
     )
 {
-    UNREFERENCED_PARAMETER(DatabaseId);
-    UNREFERENCED_PARAMETER(ConnectString);
-
     DebugLog("Called StorageAdapterEraseDatabase. File Path: %ls\n", FilePath);
 
     HRESULT hr = S_OK;
 
     if (!ARGUMENT_PRESENT(Pipeline) ||
-        !ARGUMENT_PRESENT(FilePath))
+        !ARGUMENT_PRESENT(DatabaseId) ||
+        !ARGUMENT_PRESENT(FilePath) ||
+        !ARGUMENT_PRESENT(ConnectString))
     {
         hr = E_POINTER;
         goto cleanup;
@@ -420,7 +460,7 @@ StorageAdapterEraseDatabase(
     }
     else {
         if (!DeleteFile(FilePath)) {
-            hr = HRESULT_FROM_WIN32(GetLastError());
+            hr = WINBIO_E_DATABASE_CANT_ERASE;
         }
     }
 
@@ -438,15 +478,14 @@ StorageAdapterOpenDatabase(
     _In_ LPCWSTR ConnectString
     )
 {
-    UNREFERENCED_PARAMETER(DatabaseId);
-    UNREFERENCED_PARAMETER(ConnectString);
-
     DebugLog("Called StorageAdapterOpenDatabase. File Path: %ls\n", FilePath);
 
     HRESULT hr = S_OK;
 
     if (!ARGUMENT_PRESENT(Pipeline) ||
-        !ARGUMENT_PRESENT(FilePath))
+        !ARGUMENT_PRESENT(DatabaseId) ||
+        !ARGUMENT_PRESENT(FilePath) ||
+        !ARGUMENT_PRESENT(ConnectString))
     {
         hr = E_POINTER;
         goto cleanup;
@@ -477,7 +516,7 @@ StorageAdapterOpenDatabase(
             NULL
         );
         if (Pipeline->StorageHandle == INVALID_HANDLE_VALUE) {
-            hr = HRESULT_FROM_WIN32(GetLastError());
+            hr = WINBIO_E_DATABASE_CANT_OPEN;
         }
     }
 
