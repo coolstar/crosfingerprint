@@ -564,6 +564,8 @@ SensorAdapterStartCapture(
     Parameters.PayloadSize = sizeof(WINBIO_CAPTURE_PARAMETERS);
     Parameters.Purpose = Purpose;
     Parameters.Flags = WINBIO_DATA_FLAG_PROCESSED;
+    Parameters.Format.Owner = WINBIO_ANSI_381_FORMAT_OWNER;
+    Parameters.Format.Type = WINBIO_ANSI_381_FORMAT_TYPE;
 
     RtlZeroMemory(&sensorContext->CaptureData, sizeof(CRFP_CAPTURE_DATA));
 

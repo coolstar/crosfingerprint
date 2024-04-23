@@ -209,6 +209,21 @@ CaptureFpData(
 		return status;
 	}
 
+	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+		"Capture Params Purpose 0x%x, Format (0x%x 0x%x), Flags 0x%x\n", CaptureParams->Purpose, CaptureParams->Format.Owner, CaptureParams->Format.Type, CaptureParams->Flags);
+
+	if (CaptureParams->Format.Owner != WINBIO_ANSI_381_FORMAT_OWNER) {
+		CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_DATA_FORMAT;
+		WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
+		return status;
+	}
+
+	if (CaptureParams->Format.Type != WINBIO_ANSI_381_FORMAT_TYPE || CaptureParams->Flags != WINBIO_DATA_FLAG_PROCESSED) {
+		CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_DATA_TYPE;
+		WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
+		return status;
+	}
+
 	if (devContext->CurrentCapture) {
 		WINBIO_SENSOR_MODE sensorMode;
 		status = CrosFPSensorStatus(devContext, &sensorMode);
@@ -227,6 +242,12 @@ CaptureFpData(
 			CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL_FOR_IDENTIFICATION ||
 			CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL_FOR_VERIFICATION)
 			p.mode = FP_MODE_ENROLL_IMAGE | FP_MODE_ENROLL_SESSION | FP_MODE_FINGER_DOWN | FP_MODE_FINGER_UP;
+		else if (CaptureParams->Purpose != 0) {
+			CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_PURPOSE;
+
+			WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
+			return status;
+		}
 
 		if (devContext->FingerUp) {
 
