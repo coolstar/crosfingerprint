@@ -680,6 +680,16 @@ StorageAdapterAddRecord(
         goto cleanup;
     }
 
+    if (RecordContents->Identity->Type != WINBIO_ID_TYPE_GUID && RecordContents->Identity->Type != WINBIO_ID_TYPE_SID) {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    if (RecordContents->SubFactor == WINBIO_SUBTYPE_NO_INFORMATION || RecordContents->SubFactor == WINBIO_SUBTYPE_ANY) {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
     if (storageContext->Database.size() == storageContext->MaxFingers) {
         hr = WINBIO_E_DATABASE_FULL;
         goto cleanup;
