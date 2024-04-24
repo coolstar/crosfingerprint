@@ -76,6 +76,7 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 		goto out;
 	}
 
+retry:
 	RtlZeroMemory(dout, dout_len);
 	RtlZeroMemory(din, din_len);
 
@@ -116,6 +117,11 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 		goto out;
 	}
 
+	if (msg->Command == EC_CMD_REBOOT) {
+		Sleep(50);
+		goto out;
+	}
+
 	ULONGLONG Timeout = GetTickCount64() + EC_MSG_DEADLINE_MS;
 	while (TRUE) {
 		UINT8 byte = 0;
@@ -129,8 +135,29 @@ NTSTATUS cros_ec_pkt_xfer_spi(
 			break;
 		}
 		
+		if (byte == EC_SPI_PAST_END ||
+			byte == EC_SPI_RX_BAD_DATA ||
+			byte == EC_SPI_NOT_READY) {
+			CrosFPPrint(
+				DEBUG_LEVEL_ERROR,
+				DBG_IOCTL,
+				"Got Byte: 0x%x\n", byte);
+			status = STATUS_RETRY;
+			break;
+		}
+
 		if (byte == EC_SPI_FRAME_START)
 			break;
+	}
+
+	if (status == STATUS_RETRY) {
+		CrosFPPrint(
+			DEBUG_LEVEL_ERROR,
+			DBG_IOCTL,
+			"EC Didn't fully receive command. Retrying: %x\n", status);
+		SpbUnlockController(&pDevice->IoContext.SpbContext);
+		Sleep(100);
+		goto retry;
 	}
 
 	if (!NT_SUCCESS(status)) {
