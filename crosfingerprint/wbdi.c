@@ -308,7 +308,9 @@ void CompleteFPRequest(
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"Got finger down!\n");
 
-	} else if ((fp_events & EC_MKBP_FP_FINGER_UP) == EC_MKBP_FP_FINGER_UP) {
+	}
+	
+	if ((fp_events & EC_MKBP_FP_FINGER_UP) == EC_MKBP_FP_FINGER_UP) {
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 			"Finger Up!\n");
 		devContext->FingerUp = TRUE;
