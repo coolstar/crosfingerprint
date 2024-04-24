@@ -338,10 +338,16 @@ StorageAdapterDetach(
         goto cleanup;
     }
 
-    if (Pipeline->StorageContext) {
-        HeapFree(GetProcessHeap(), HEAP_ZERO_MEMORY, Pipeline->StorageContext);
-        Pipeline->StorageContext = NULL;
+    if (Pipeline->StorageContext == NULL) {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
     }
+
+    StorageAdapterClearContext(Pipeline);
+    StorageAdapterCloseDatabase(Pipeline);
+
+    HeapFree(GetProcessHeap(), HEAP_ZERO_MEMORY, Pipeline->StorageContext);
+    Pipeline->StorageContext = NULL;
 
 cleanup:
     return hr;
