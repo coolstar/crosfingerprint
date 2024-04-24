@@ -95,5 +95,6 @@ HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 template
 enum StorageControlCode {
     StorageControlCodeNone,
     StorageControlCodeUploadToHw,
-    StorageControlCodeSaveToDisk
+    StorageControlCodeSaveToDisk,
+    StorageControlDownloadTemplate
 };

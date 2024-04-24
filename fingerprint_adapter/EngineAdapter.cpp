@@ -664,6 +664,8 @@ EngineAdapterIdentifyFeatureSet(
     *HashSize = 0;
     *RejectDetail = 0;
 
+    WbioStorageQueryByContent(Pipeline, WINBIO_SUBTYPE_ANY, NULL, 0);
+
     // Determine the size of the result set. WbioStorageGetRecordCount is a wrapper
     // function in the Winbio_adapter.h header file.
     hr = WbioStorageGetRecordCount(Pipeline, &recordCount);
@@ -955,9 +957,6 @@ EngineAdapterCommitEnrollment(
     _In_ SIZE_T PayloadBlobSize
     )
 {
-    UNREFERENCED_PARAMETER(PayloadBlob);
-    UNREFERENCED_PARAMETER(PayloadBlobSize);
-
     DebugLog("Called EngineAdapterCommitEnrollment\n");
 
     HRESULT hr = S_OK;
@@ -991,6 +990,23 @@ EngineAdapterCommitEnrollment(
     newTemplate.TemplateBlobSize = 0;
     newTemplate.PayloadBlob = PayloadBlob;
     newTemplate.PayloadBlobSize = PayloadBlobSize;
+
+    ULONG OperationStatus;
+
+    hr = WbioStorageControlUnit(
+        Pipeline,
+        StorageControlDownloadTemplate,
+        NULL,
+        0,
+        (PUCHAR)&newTemplate.TemplateBlob,
+        sizeof(PUCHAR),
+        &newTemplate.TemplateBlobSize,
+        &OperationStatus
+        );
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
 
     hr = WbioStorageAddRecord(
         Pipeline,
