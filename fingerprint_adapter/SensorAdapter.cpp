@@ -426,37 +426,6 @@ SensorAdapterReset(
         return Diag.WinBioHresult;
     }
 
-    if ((Diag.SensorStatus & WINBIO_SENSOR_NOT_CALIBRATED) == WINBIO_SENSOR_NOT_CALIBRATED) {
-        WINBIO_CALIBRATION_INFO Calib = { 0 };
-
-        DebugLog("Calibrating Sensor...\n");
-
-        if (!DeviceIoControl(Pipeline->SensorHandle,
-            IOCTL_BIOMETRIC_CALIBRATE,
-            NULL,
-            0,
-            &Calib,
-            sizeof(WINBIO_CALIBRATION_INFO),
-            &BytesReturned,
-            NULL)) {
-            DWORD LastError = GetLastError();
-            DebugLog("IOCTL_BIOMETRIC_CALIBRATE failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-            return HRESULT_FROM_WIN32(LastError);
-        }
-        if (FAILED(Calib.WinBioHresult)) {
-            DebugLog("IOCTL_BIOMETRIC_CALIBRATE errored 0x%x\n", Calib.WinBioHresult);
-            return Calib.WinBioHresult;
-        }
-
-        SIZE_T ReceivedSize;
-        ULONG OperationStatus;
-        HRESULT hr = WbioStorageControlUnit(Pipeline, StorageControlCodeUploadToHw, NULL, 0, NULL, 0, &ReceivedSize, &OperationStatus);
-        if (FAILED(hr)) {
-            DebugLog("Upload templates to hw errored 0x%x\n", Calib.WinBioHresult);
-            return hr;
-        }
-    }
-
     return S_OK;
 }
 ///////////////////////////////////////////////////////////////////////////////

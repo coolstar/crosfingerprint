@@ -135,31 +135,14 @@ NTSTATUS CalibrateSensor(
 	}
 
 	int i = 0;
-	while (!devContext->DeviceReady) {
+	while (!devContext->DeviceReady && !devContext->DeviceCalibrated) {
 		Sleep(200);
 		i++;
 	}
 	CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
 		"Ready after %d iters\n", i);
 	if (!devContext->DeviceCalibrated){
-
-		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
-			"Set Seed\n");
-
-		struct ec_params_fp_seed p;
-		p.struct_version = FP_TEMPLATE_FORMAT_VERSION;
-		for (int j = 0; j < FP_CONTEXT_TPM_BYTES; j++) {
-			p.seed[j] = j % 0xFF;
-		}
-		status = cros_ec_command(devContext, EC_CMD_FP_SEED, 0, &p, sizeof(p), NULL, 0);
-
-		if (!NT_SUCCESS(status)) {
-			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
-				"Warning: Set FP Seed failed 0x%x\n", status);
-		}
-		else {
-			devContext->DeviceCalibrated = TRUE;
-		}
+		status = STATUS_DEVICE_CONFIGURATION_ERROR; //Failed to auto-calibrate
 	}
 
 	sensorCalibration->PayloadSize = sizeof(WINBIO_CALIBRATION_INFO);
