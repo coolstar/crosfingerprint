@@ -40,6 +40,7 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "StorageAdapter.h"
+#include <Shlwapi.h>
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -455,6 +456,10 @@ StorageAdapterEraseDatabase(
         goto cleanup;
     }
 
+    if (Pipeline->StorageContext == NULL) {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
     if (Pipeline->StorageHandle != INVALID_HANDLE_VALUE) {
         WINBIO_IDENTITY Identity = { 0 };
         Identity.Type = WINBIO_ID_TYPE_WILDCARD;

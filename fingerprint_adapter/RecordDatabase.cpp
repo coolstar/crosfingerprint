@@ -54,8 +54,9 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
         if (!ReadFile(Pipeline->StorageHandle, &newRecord,
             recordSize, &bytesRead, NULL) ||
             bytesRead != recordSize) {
-            hr = HRESULT_FROM_WIN32(GetLastError());
-            DebugLog("Error loading record 0x%x\n", hr);
+            DebugLog("Error loading record 0x%x\n", HRESULT_FROM_WIN32(GetLastError()));
+
+            hr = WINBIO_E_DATABASE_CANT_OPEN;
             goto cleanup;
         }
 
@@ -85,8 +86,8 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
         if (!ReadFile(Pipeline->StorageHandle, record->TemplateData,
             record->TemplateSize,
             &bytesRead, NULL) || bytesRead != record->TemplateSize) {
-            hr = HRESULT_FROM_WIN32(GetLastError());
-            DebugLog("Error loading template 0x%x\n", hr);
+            DebugLog("Error loading template 0x%x\n", HRESULT_FROM_WIN32(GetLastError()));
+            hr = WINBIO_E_DATABASE_READ_ERROR;
             goto cleanup;
         }
 
@@ -168,8 +169,8 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
         if (!WriteFile(Pipeline->StorageHandle, &newRecord,
             sizeof(newRecord), &bytesRead, NULL) ||
             bytesRead != sizeof(newRecord)) {
-            hr = HRESULT_FROM_WIN32(GetLastError());
-            DebugLog("Error saving record 0x%x\n", hr);
+            DebugLog("Error saving record 0x%x\n", HRESULT_FROM_WIN32(GetLastError()));
+            hr = WINBIO_E_DATABASE_CANT_OPEN;
             goto cleanup;
         }
     }
@@ -185,8 +186,8 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
         if (!WriteFile(Pipeline->StorageHandle, record->TemplateData,
             record->TemplateSize,
             &bytesRead, NULL) || bytesRead != record->TemplateSize) {
-            hr = HRESULT_FROM_WIN32(GetLastError());
-            DebugLog("Error saving template 0x%x\n", hr);
+            DebugLog("Error saving template 0x%x\n", HRESULT_FROM_WIN32(GetLastError()));
+            hr = WINBIO_E_DATABASE_WRITE_ERROR;
             goto cleanup;
         }
     }

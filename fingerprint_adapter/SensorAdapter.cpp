@@ -370,7 +370,7 @@ SensorAdapterQueryStatus(
                 return WINBIO_E_CANCELED;
             }
             else {
-                return HRESULT_FROM_WIN32(LastError);
+                return WINBIO_E_INVALID_DEVICE_STATE;
             }
         }
         if (BytesReturned != 4) {
@@ -414,7 +414,7 @@ SensorAdapterReset(
                 return WINBIO_E_CANCELED;
             }
             else {
-                return HRESULT_FROM_WIN32(LastError);
+                return WINBIO_E_INVALID_DEVICE_STATE;
             }
         }
         if (BytesReturned != 4) {
@@ -550,7 +550,7 @@ SensorAdapterStartCapture(
         DWORD LastError = GetLastError();
         if (GetLastError() != ERROR_IO_PENDING) {
             DebugLog("IOCTL_BIOMETRIC_CAPTURE_DATA failed 0x%x 0x%x\n", LastError, HRESULT_FROM_WIN32(LastError));
-            return HRESULT_FROM_WIN32(LastError);
+            return WINBIO_E_BAD_CAPTURE;
         }
     }
     return S_OK;
@@ -588,7 +588,7 @@ SensorAdapterFinishCapture(
 
     DWORD BytesReturned;
     if (!GetOverlappedResult(Pipeline->SensorHandle, &Pipeline->SensorContext->Overlapped, &BytesReturned, TRUE)) {
-        return HRESULT_FROM_WIN32(GetLastError());
+        return WINBIO_E_BAD_CAPTURE;
     }
 
     UINT32 MKBPResult = Pipeline->SensorContext->CaptureData.FPMKBPValue;
@@ -670,7 +670,7 @@ SensorAdapterCancel(
         DWORD LastError = GetLastError();
         if (LastError != ERROR_NOT_FOUND) {
             DebugLog("SensorAdapterCancel failed with %d\n", LastError);
-            return HRESULT_FROM_WIN32(LastError);
+            return WINBIO_E_BAD_CAPTURE;
         }
     }
 
