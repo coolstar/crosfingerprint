@@ -75,7 +75,7 @@ HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 te
     HRESULT hr = ec_command(Pipeline, EC_CMD_GET_PROTOCOL_INFO, 0, NULL, 0, &info, sizeof(info));
     if (FAILED(hr)) {
         DebugLog("Failed to get Protocol Info\n");
-        return hr;
+        return WINBIO_E_INVALID_DEVICE_STATE;
     }
 
     UINT32 ec_max_insize = info.max_response_packet_size - sizeof(struct ec_host_response);
@@ -115,7 +115,7 @@ HRESULT DownloadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR *outBuffer, UINT32 te
         if (FAILED(hr)) {
             DebugLog("failed\n");
             free(buffer);
-            return hr;
+            return WINBIO_E_BAD_CAPTURE;
         }
         p.offset += stride;
         size -= stride;
@@ -153,6 +153,7 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
     HRESULT hr = ec_command(Pipeline, EC_CMD_FP_MODE, 0, &mode_p, sizeof(mode_p), &mode_r, sizeof(mode_r));
     if (FAILED(hr)) {
         DebugLog("Reset FP Context (set fp mode): %d\n", hr);
+        hr = WINBIO_E_CONFIGURATION_FAILURE;
         goto cleanup;
     }
 
@@ -166,6 +167,7 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
     hr = ec_command(Pipeline, EC_CMD_FP_CONTEXT, 1, &p, sizeof(p), NULL, 0);
     if (FAILED(hr)) {
         DebugLog("Reset FP Context (async): %d\n", hr);
+        hr = WINBIO_E_INVALID_SENSOR_MODE;
         goto cleanup;
     }
 
@@ -182,6 +184,7 @@ HRESULT ResetFPContext(PWINBIO_PIPELINE Pipeline) {
             DebugLog("Failed to reset FP Context: %d\n", hr);
             break;
         }
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
     }
 
 cleanup:
@@ -198,6 +201,7 @@ HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 template
     HRESULT hr = ec_command(Pipeline, EC_CMD_GET_PROTOCOL_INFO, 0, NULL, 0, &info, sizeof(info));
     if (FAILED(hr)) {
         DebugLog("Failed to get Protocol Info\n");
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
         return hr;
     }
 
@@ -234,16 +238,11 @@ HRESULT UploadTemplate(PWINBIO_PIPELINE Pipeline, PUCHAR buffer, UINT32 template
             }
         }
         if (FAILED(hr)) {
-            DebugLog("failed\n");
+            DebugLog("Upload failed: %d\n", hr);
+            hr = WINBIO_E_BAD_CAPTURE;
             break;
         }
         offset += tlen;
-    }
-    if (FAILED(hr)) {
-        DebugLog("Upload failed: %d\n", hr);
-    }
-    else {
-        DebugLog("Upload success!\n");
     }
     
     free(p);
