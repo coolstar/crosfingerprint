@@ -98,7 +98,7 @@ NTSTATUS GetSensorStatus(
 
 	RtlZeroMemory(sensorStatus, outputBufferSize);
 	sensorStatus->PayloadSize = sizeof(WINBIO_DIAGNOSTICS);
-	sensorStatus->WinBioHresult = HRESULT_FROM_NT(status);
+	sensorStatus->WinBioHresult = NT_SUCCESS(status) ? 0 : WINBIO_E_INVALID_SENSOR_MODE;
 	sensorStatus->SensorStatus = sensorMode;
 
 	WdfRequestSetInformation(Request, sizeof(WINBIO_DIAGNOSTICS));
@@ -146,7 +146,7 @@ NTSTATUS CalibrateSensor(
 	}
 
 	sensorCalibration->PayloadSize = sizeof(WINBIO_CALIBRATION_INFO);
-	sensorCalibration->WinBioHresult = HRESULT_FROM_NT(status);
+	sensorCalibration->WinBioHresult = NT_SUCCESS(status) ? 0 : WINBIO_E_INVALID_DEVICE_STATE;
 
 	WdfRequestSetInformation(Request, sizeof(WINBIO_CALIBRATION_INFO));
 	return STATUS_SUCCESS;
@@ -195,13 +195,13 @@ CaptureFpData(
 	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
 		"Capture Params Purpose 0x%x, Format (0x%x 0x%x), Flags 0x%x\n", CaptureParams->Purpose, CaptureParams->Format.Owner, CaptureParams->Format.Type, CaptureParams->Flags);
 
-	if (CaptureParams->Format.Owner != WINBIO_ANSI_381_FORMAT_OWNER) {
+	if (CaptureParams->Format.Owner != WINBIO_ANSI_381_FORMAT_OWNER || CaptureParams->Format.Type != WINBIO_ANSI_381_FORMAT_TYPE) {
 		CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_DATA_FORMAT;
 		WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
 		return status;
 	}
 
-	if (CaptureParams->Format.Type != WINBIO_ANSI_381_FORMAT_TYPE || CaptureParams->Flags != WINBIO_DATA_FLAG_PROCESSED) {
+	if (CaptureParams->Flags != WINBIO_DATA_FLAG_PROCESSED) {
 		CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_DATA_TYPE;
 		WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
 		return status;
