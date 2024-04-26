@@ -44,7 +44,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="FingerprintAdapter.rc">
+    <ResourceCompile Include="CrosFingerprintAdapter.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -73,7 +73,16 @@
     <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="StorageAdapter.h">
+    <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="*.h;*.hpp;*.hxx;*.hm;*.inl;*.xsd">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

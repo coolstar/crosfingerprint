@@ -151,6 +151,9 @@
       <ModuleDefinitionFile>FingerprintAdapter.def</ModuleDefinitionFile>
       <AdditionalOptions>/INTEGRITYCHECK  /IGNORE:4198,4010,4037,4039,4065,4070,4078,4087,4089,4221,4108,4088,4218,4218,4235 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -168,6 +171,9 @@
       <ModuleDefinitionFile>FingerprintAdapter.def</ModuleDefinitionFile>
       <AdditionalOptions>/INTEGRITYCHECK  /IGNORE:4198,4010,4037,4039,4065,4070,4078,4087,4089,4221,4108,4088,4218,4218,4235 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -184,6 +190,9 @@
       <AdditionalDependencies>%(AdditionalDependencies);advapi32.lib;kernel32.lib;user32.lib</AdditionalDependencies>
       <ModuleDefinitionFile>FingerprintAdapter.def</ModuleDefinitionFile>
     </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -200,6 +209,9 @@
       <AdditionalDependencies>%(AdditionalDependencies);advapi32.lib;kernel32.lib;user32.lib</AdditionalDependencies>
       <ModuleDefinitionFile>FingerprintAdapter.def</ModuleDefinitionFile>
     </Link>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="apt-log.cpp" />
