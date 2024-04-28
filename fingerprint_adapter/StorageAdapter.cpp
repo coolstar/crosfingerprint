@@ -615,13 +615,26 @@ StorageAdapterGetDataFormat(
     _Out_ PWINBIO_VERSION Version
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(Format);
-    UNREFERENCED_PARAMETER(Version);
-
     DebugLog("Called StorageAdapterGetDataFormat\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+
+    // Verify that the Pipeline parameter is not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(Format) ||
+        !ARGUMENT_PRESENT(Version))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    RtlCopyMemory(Format, &CROSFINGERPRINT_FORMAT_GUID, sizeof(CROSFINGERPRINT_FORMAT_GUID));
+
+    Version->MajorVersion = 1;
+    Version->MinorVersion = 0;
+
+cleanup:
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
