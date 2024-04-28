@@ -41,7 +41,7 @@ NOTES:
 #include "winbio_adapter.h"
 #include "StorageAdapter.h"
 #include <Shlwapi.h>
-
+#include <initguid.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -238,6 +238,8 @@ static WINBIO_STORAGE_INTERFACE g_StorageInterface = {
 };
 //-----------------------------------------------------------------------------
 
+DEFINE_GUID(CROSFINGERPRINT_FORMAT_GUID,
+    0x5c49a2a7, 0x67ea, 0x4ed5, 0x85, 0x7f, 0x3c, 0x5f, 0x4d, 0x68, 0x32, 0xc4);
 
 ///////////////////////////////////////////////////////////////////////////////
 //
