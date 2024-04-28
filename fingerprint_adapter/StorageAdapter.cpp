@@ -802,15 +802,23 @@ StorageAdapterDeleteRecord(
 
     WbioStorageClearContext(Pipeline);
 
+    BOOLEAN foundMatch = FALSE;
+
     it = storageContext->Database.begin();
     while (it != storageContext->Database.end()) {
         if (MatchSubject(Identity, SubFactor, *it)) {
             DebugLog("Matched for deletion!\n");
+            foundMatch = TRUE;
             it = storageContext->Database.erase(it);
         }
         else {
             ++it;
         }
+    }
+
+    if (!foundMatch) {
+        hr = WINBIO_E_DATABASE_NO_SUCH_RECORD;
+        goto cleanup;
     }
 
     DebugLog("New Count: %d\n", storageContext->Database.size());
@@ -1004,6 +1012,10 @@ StorageAdapterGetRecordCount(
     {
         hr = E_POINTER;
         goto cleanup;
+    }
+
+    if (Pipeline->StorageContext->Records.empty()) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
     }
 
     *RecordCount = Pipeline->StorageContext->Records.size();
