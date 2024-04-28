@@ -588,6 +588,9 @@ SensorAdapterFinishCapture(
 
     DWORD BytesReturned;
     if (!GetOverlappedResult(Pipeline->SensorHandle, &Pipeline->SensorContext->Overlapped, &BytesReturned, TRUE)) {
+        if (Pipeline->SensorContext->CaptureData.WinBioHresult == WINBIO_E_CANCELED) {
+            return WINBIO_E_CANCELED;
+        }
         return WINBIO_E_BAD_CAPTURE;
     }
 
@@ -673,6 +676,8 @@ SensorAdapterCancel(
             return WINBIO_E_BAD_CAPTURE;
         }
     }
+
+    Pipeline->SensorContext->CaptureData.WinBioHresult = WINBIO_E_CANCELED;
 
     return S_OK;
 }
