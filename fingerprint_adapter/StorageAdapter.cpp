@@ -754,10 +754,6 @@ StorageAdapterDeleteRecord(
     _In_ WINBIO_BIOMETRIC_SUBTYPE SubFactor
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(Identity);
-    UNREFERENCED_PARAMETER(SubFactor);
-
     DebugLog("Called StorageAdapterDeleteRecord. Identity Type %d\n", Identity->Type);
 
     HRESULT hr = S_OK;
