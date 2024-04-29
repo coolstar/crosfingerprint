@@ -156,7 +156,7 @@ retry:
 			DBG_IOCTL,
 			"EC Didn't fully receive command. Retrying: %x\n", status);
 		SpbUnlockController(&pDevice->IoContext.SpbContext);
-		Sleep(100);
+		Sleep(200);
 		goto retry;
 	}
 
