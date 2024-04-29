@@ -5,6 +5,46 @@
 static ULONG CrosFPDebugLevel = 0;
 static ULONG CrosFPDebugCatagories = DBG_INIT || DBG_PNP || DBG_IOCTL;
 
+NTSTATUS ResetSensor(
+	IN PCROSFP_CONTEXT   devContext,
+	IN WDFREQUEST   Request
+) {
+	NTSTATUS status;
+	PWINBIO_BLANK_PAYLOAD sensorStatus;
+	SIZE_T outputBufferSize;
+
+	status = WdfRequestRetrieveOutputBuffer(Request, sizeof(WINBIO_BLANK_PAYLOAD), &sensorStatus, &outputBufferSize);
+	if (!NT_SUCCESS(status)) {
+		PDWORD payloadSize;
+		status = WdfRequestRetrieveOutputBuffer(Request, sizeof(DWORD), &payloadSize, &outputBufferSize);
+
+		CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+			"WdfRequestRetrieveOutputBuffer sending DWORD\n");
+
+		if (!NT_SUCCESS(status)) {
+			CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_IOCTL,
+				"WdfRequestRetrieveOutputBuffer failed %x\n", status);
+			return status;
+		}
+
+		*payloadSize = sizeof(WINBIO_BLANK_PAYLOAD);
+		WdfRequestSetInformation(Request, sizeof(DWORD));
+		return status;
+	}
+
+	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+		"WdfRequestRetrieveOutputBuffer sending WINBIO_BLANK_PAYLOAD\n");
+
+	RtlZeroMemory(sensorStatus, outputBufferSize);
+	sensorStatus->PayloadSize = sizeof(WINBIO_BLANK_PAYLOAD);
+	sensorStatus->WinBioHresult = S_OK;
+
+	WdfRequestSetInformation(Request, sizeof(WINBIO_BLANK_PAYLOAD));
+	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
+		"WdfRequestRetrieveOutputBuffer sent WINBIO_BLANK_PAYLOAD\n");
+	return STATUS_SUCCESS;
+}
+
 NTSTATUS GetFingerprintAttributes(
 	IN WDFREQUEST   Request
 ) {

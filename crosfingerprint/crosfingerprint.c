@@ -591,7 +591,7 @@ CrosFPEvtIoDeviceControl(
 	case IOCTL_BIOMETRIC_RESET:
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,
 			"Requested fp reset\n");
-		status = STATUS_SUCCESS;
+		status = ResetSensor(devContext, Request);
 		break;
 	case IOCTL_BIOMETRIC_CALIBRATE:
 		CrosFPPrint(DEBUG_LEVEL_ERROR, DBG_PNP,

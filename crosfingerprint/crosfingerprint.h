@@ -140,6 +140,11 @@ NTSTATUS CrosFPSensorStatus
     PWINBIO_SENSOR_STATUS sensorMode
 );
 
+NTSTATUS ResetSensor(
+    IN PCROSFP_CONTEXT   devContext,
+    IN WDFREQUEST   Request
+);
+
 NTSTATUS GetFingerprintAttributes(
     IN WDFREQUEST   Request
 );
