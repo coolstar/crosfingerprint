@@ -601,19 +601,134 @@ EngineAdapterVerifyFeatureSet(
     _Out_ PWINBIO_REJECT_DETAIL RejectDetail
     )
 {
-    UNREFERENCED_PARAMETER(Pipeline);
-    UNREFERENCED_PARAMETER(Identity);
-    UNREFERENCED_PARAMETER(SubFactor);
-    UNREFERENCED_PARAMETER(Match);
-    UNREFERENCED_PARAMETER(PayloadBlob);
-    UNREFERENCED_PARAMETER(PayloadBlobSize);
-    UNREFERENCED_PARAMETER(HashValue);
-    UNREFERENCED_PARAMETER(HashSize);
-    UNREFERENCED_PARAMETER(RejectDetail);
 
     DebugLog("Called EngineAdapterVerifyFeatureSet\n");
 
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+    SIZE_T recordCount = 0;
+    WINBIO_STORAGE_RECORD thisRecord;
+
+    // Verify that pointer arguments are not NULL.
+    if (!ARGUMENT_PRESENT(Pipeline) ||
+        !ARGUMENT_PRESENT(Identity) ||
+        !ARGUMENT_PRESENT(Match) ||
+        !ARGUMENT_PRESENT(PayloadBlob) ||
+        !ARGUMENT_PRESENT(PayloadBlobSize) ||
+        !ARGUMENT_PRESENT(HashValue) ||
+        !ARGUMENT_PRESENT(HashSize) ||
+        !ARGUMENT_PRESENT(RejectDetail))
+    {
+        hr = E_POINTER;
+        goto cleanup;
+    }
+
+    if (SubFactor == WINBIO_SUBTYPE_NO_INFORMATION) {
+        hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    // Retrieve the context from the pipeline.
+    PWINIBIO_ENGINE_CONTEXT context =
+        (PWINIBIO_ENGINE_CONTEXT)Pipeline->EngineContext;
+
+    // Initialize the return values.
+    *Match = FALSE;
+    *PayloadBlob = NULL;
+    *PayloadBlobSize = 0;
+    *HashValue = NULL;
+    *HashSize = 0;
+    *RejectDetail = 0;
+
+    WbioStorageQueryByContent(Pipeline, SubFactor, NULL, 0);
+
+    // Determine the size of the result set. WbioStorageGetRecordCount is a wrapper
+    // function in the Winbio_adapter.h header file.
+    hr = WbioStorageGetRecordCount(Pipeline, &recordCount);
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
+
+    UINT8 matchIdx = (EC_MKBP_FP_MATCH_IDX_MASK >> EC_MKBP_FP_MATCH_IDX_OFFSET);
+    if (context->LastMKBPValue & EC_MKBP_FP_MATCH) {
+        matchIdx = EC_MKBP_FP_MATCH_IDX(context->LastMKBPValue);
+    }
+    DebugLog("Match? %d Index: %d, Err: %d\n", (context->LastMKBPValue & EC_MKBP_FP_MATCH) != 0, matchIdx, EC_MKBP_FP_ERRCODE(context->LastMKBPValue));
+
+    if (matchIdx == (EC_MKBP_FP_MATCH_IDX_MASK >> EC_MKBP_FP_MATCH_IDX_OFFSET)) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+        DebugLog("Invalid Finger\n", matchIdx);
+        goto cleanup;
+    }
+
+    if (matchIdx >= recordCount) {
+        hr = WINBIO_E_DATABASE_NO_RESULTS;
+        DebugLog("Finger not in database??\n", matchIdx);
+        goto cleanup;
+    }
+
+    // Point the result set cursor at the first record. WbioStorageFirstRecord
+    // is a wrapper function in the Winbio_adapter.h header file.
+    hr = WbioStorageFirstRecord(Pipeline);
+    if (FAILED(hr))
+    {
+        goto cleanup;
+    }
+
+    for (UINT8 i = 0; i < matchIdx; i++) {
+        hr = WbioStorageNextRecord(Pipeline);
+        if (FAILED(hr))
+        {
+            goto cleanup;
+        }
+    }
+
+    hr = WbioStorageGetCurrentRecord(Pipeline, &thisRecord);
+    if (FAILED(hr))
+    {
+        DebugLog("[Engine] Failed to get record\n");
+        goto cleanup;
+    }
+
+    DebugLog("[Engine] Got identity type %d\n", thisRecord.Identity->Type);
+
+    if (EC_MKBP_FP_ERRCODE(context->LastMKBPValue) == EC_MKBP_FP_ERR_MATCH_YES_UPDATED) {
+        DebugLog("[Engine] Need to update template %d\n", thisRecord.IndexVector[0]);
+
+        PUCHAR newBuffer;
+        if (SUCCEEDED(DownloadTemplate(Pipeline, &newBuffer, (UINT32)thisRecord.TemplateBlobSize, thisRecord.IndexVector[0]))) {
+            DebugLog("Success!\n");
+            RtlCopyMemory(thisRecord.TemplateBlob, newBuffer, thisRecord.TemplateBlobSize);
+            free(newBuffer);
+
+            SIZE_T ReceivedSz;
+            ULONG Status;
+            WbioStorageControlUnit(Pipeline,
+                StorageControlCodeSaveToDisk,
+                NULL, 0,
+                NULL, 0,
+                &ReceivedSz,
+                &Status);
+        }
+    }
+
+    if (Identity->Type == thisRecord.Identity->Type &&
+        RtlCompareMemory(&Identity->Value, &thisRecord.Identity->Value, sizeof(Identity->Value)) == sizeof(Identity->Value)) {
+        *Match = TRUE;
+    }
+    else {
+        hr = WINBIO_E_NO_MATCH;
+    }
+    *PayloadBlob = thisRecord.PayloadBlob;
+    *PayloadBlobSize = thisRecord.PayloadBlobSize;
+
+cleanup:
+    if (hr == WINBIO_E_DATABASE_NO_RESULTS)
+    {
+        hr = WINBIO_E_NO_MATCH;
+    }
+    DebugLog("[Engine] Returning match result 0x%x\n", hr);
+    return hr;
 }
 //-----------------------------------------------------------------------------
 
