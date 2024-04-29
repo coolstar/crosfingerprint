@@ -793,7 +793,7 @@ EngineAdapterIdentifyFeatureSet(
     if (context->LastMKBPValue & EC_MKBP_FP_MATCH) {
         matchIdx = EC_MKBP_FP_MATCH_IDX(context->LastMKBPValue);
     }
-    DebugLog("Match Index: %d\n", matchIdx);
+    DebugLog("Match? %d Index: %d, Err: %d\n", (context->LastMKBPValue & EC_MKBP_FP_MATCH) != 0, matchIdx, EC_MKBP_FP_ERRCODE(context->LastMKBPValue));
 
     if (matchIdx == (EC_MKBP_FP_MATCH_IDX_MASK >> EC_MKBP_FP_MATCH_IDX_OFFSET)) {
         hr = WINBIO_E_DATABASE_NO_RESULTS;
@@ -894,7 +894,12 @@ EngineAdapterCreateEnrollment(
     // your engine adapter context contains an enrollment object.
     if (context->Enrollment.InProgress == TRUE)
     {
-        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        if (context->Enrollment.EnrollmentProgress == 0) {
+            hr = S_OK;
+        }
+        else {
+            hr = WINBIO_E_INVALID_DEVICE_STATE;
+        }
         goto cleanup;
     }
 
