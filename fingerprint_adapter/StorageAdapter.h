@@ -54,6 +54,9 @@ typedef struct _CRFP_DATABASE_FILE_HEADER {
     UINT32 RecordSize;
     UINT32 TemplateSize;
 
+    GUID DataFormat;
+    UINT32 IndexElementCount;
+
     //CRFP_STORAGE_RECORD Records[];
     //PUCHAR Templates[];
 } CRFP_DATABASE_FILE_HEADER, *PCRFP_DATABASE_FILE_HEADER;
@@ -77,6 +80,9 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
     UINT16 FingerHeight;
     UINT32 MaxFingers;
     UINT32 TemplateSize;
+
+    GUID DataFormat;
+    UINT32 IndexElementCount;
 
     ULONG RecordCursor;
     std::vector<CRFP_STORAGE_RECORD> Database;

@@ -41,7 +41,6 @@ NOTES:
 #include "winbio_adapter.h"
 #include "StorageAdapter.h"
 #include <Shlwapi.h>
-#include <initguid.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -238,9 +237,6 @@ static WINBIO_STORAGE_INTERFACE g_StorageInterface = {
 };
 //-----------------------------------------------------------------------------
 
-DEFINE_GUID(CROSFINGERPRINT_FORMAT_GUID,
-    0x5c49a2a7, 0x67ea, 0x4ed5, 0x85, 0x7f, 0x3c, 0x5f, 0x4d, 0x68, 0x32, 0xc4);
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Well-known interface-discovery function exported by the Storage Adapter
@@ -403,7 +399,6 @@ StorageAdapterCreateDatabase(
     )
 {
     UNREFERENCED_PARAMETER(Factor);
-    UNREFERENCED_PARAMETER(IndexElementCount);
     UNREFERENCED_PARAMETER(InitialSize);
 
     DebugLog("Called StorageAdapterCreateDatabase. File Path: %ls\n", FilePath);
@@ -445,6 +440,20 @@ StorageAdapterCreateDatabase(
         CloseHandle(databaseFile);
         goto cleanup;
     }
+
+    Pipeline->StorageContext->DataFormat = *Format;
+    Pipeline->StorageContext->IndexElementCount = IndexElementCount;
+
+    hr = WbioStorageOpenDatabase(Pipeline, DatabaseId, FilePath, ConnectString);
+
+    SIZE_T ReceivedSz;
+    ULONG Status;
+    WbioStorageControlUnit(Pipeline,
+        StorageControlCodeSaveToDisk,
+        NULL, 0,
+        NULL, 0,
+        &ReceivedSz,
+        &Status);
 
 cleanup:
     return hr;
@@ -630,7 +639,18 @@ StorageAdapterGetDataFormat(
         goto cleanup;
     }
 
-    RtlCopyMemory(Format, &CROSFINGERPRINT_FORMAT_GUID, sizeof(CROSFINGERPRINT_FORMAT_GUID));
+    // Retrieve the context from the pipeline.
+    PWINIBIO_STORAGE_CONTEXT storageContext =
+        (PWINIBIO_STORAGE_CONTEXT)Pipeline->StorageContext;
+
+    if (storageContext == NULL ||
+        Pipeline->StorageHandle == INVALID_HANDLE_VALUE)
+    {
+        hr = WINBIO_E_INVALID_DEVICE_STATE;
+        goto cleanup;
+    }
+
+    *Format = storageContext->DataFormat;
 
     Version->MajorVersion = 1;
     Version->MinorVersion = 0;
@@ -718,6 +738,17 @@ StorageAdapterAddRecord(
 
     if (RecordContents->SubFactor == WINBIO_SUBTYPE_NO_INFORMATION || RecordContents->SubFactor == WINBIO_SUBTYPE_ANY) {
         hr = E_INVALIDARG;
+        goto cleanup;
+    }
+
+    if (RecordContents->IndexElementCount != storageContext->IndexElementCount) {
+        hr = WINBIO_E_DATABASE_BAD_INDEX_VECTOR;
+        goto cleanup;
+    }
+    if (storageContext->IndexElementCount > 0 &&
+        !ARGUMENT_PRESENT(RecordContents->IndexVector))
+    {
+        hr = E_POINTER;
         goto cleanup;
     }
 
@@ -1002,7 +1033,8 @@ StorageAdapterQueryByContent(
 
     for (int i = 0; i < storageContext->Database.size(); i++) {
         CRFP_STORAGE_RECORD& record = storageContext->Database[i];
-        storageContext->Records.push_back(&storageContext->Database[i]);
+        if (record.SubFactor == SubFactor || SubFactor == WINBIO_SUBTYPE_ANY)
+            storageContext->Records.push_back(&storageContext->Database[i]);
     }
 
 cleanup:
@@ -1134,7 +1166,7 @@ StorageAdapterGetCurrentRecord(
     RecordContents->Identity = &record->Identity;
     RecordContents->SubFactor = record->SubFactor;
     RecordContents->IndexVector = &Pipeline->StorageContext->RecordCursor;
-    RecordContents->IndexElementCount = 1;
+    RecordContents->IndexElementCount = Pipeline->StorageContext->IndexElementCount;
     RecordContents->TemplateBlob = record->TemplateData;
     RecordContents->TemplateBlobSize = record->TemplateSize;
 

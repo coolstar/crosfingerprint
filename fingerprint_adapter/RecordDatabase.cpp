@@ -47,6 +47,9 @@ HRESULT LoadDatabase(PWINBIO_PIPELINE Pipeline) {
         fileHeader.RecordsCount = storageContext->MaxFingers; //We can fix too many records
     }
 
+    storageContext->DataFormat = fileHeader.DataFormat;
+    storageContext->IndexElementCount = fileHeader.IndexElementCount;
+
     for (i = 0; i < fileHeader.RecordsCount; i++) {
         DebugLog("Loading record %d\n", i);
         CRFP_STORAGE_RECORD newRecord = { 0 };
@@ -146,6 +149,9 @@ HRESULT SaveDatabase(PWINBIO_PIPELINE Pipeline) {
     fileHeader.RecordsCount = (UINT32)storageContext->Database.size();
     fileHeader.RecordSize = sizeof(CRFP_STORAGE_RECORD);
     fileHeader.TemplateSize = storageContext->TemplateSize;
+
+    fileHeader.DataFormat = storageContext->DataFormat;
+    fileHeader.IndexElementCount = storageContext->IndexElementCount;
 
     DebugLog("Saving database header\n");
     if (!WriteFile(Pipeline->StorageHandle,

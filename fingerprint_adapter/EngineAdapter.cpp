@@ -1102,10 +1102,15 @@ EngineAdapterCommitEnrollment(
         goto cleanup;
     }
 
+    ULONG indexElementCount = 1;
+    if (Pipeline->StorageContext) {
+        indexElementCount = Pipeline->StorageContext->IndexElementCount;
+    }
+
     newTemplate.Identity = Identity;
     newTemplate.SubFactor = SubFactor;
-    newTemplate.IndexVector = NULL;
-    newTemplate.IndexElementCount = 0;
+    newTemplate.IndexVector = &indexElementCount;
+    newTemplate.IndexElementCount = indexElementCount;
     newTemplate.TemplateBlob = NULL;
     newTemplate.TemplateBlobSize = 0;
     newTemplate.PayloadBlob = PayloadBlob;
