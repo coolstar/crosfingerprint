@@ -600,10 +600,13 @@ SensorAdapterFinishCapture(
     if (MKBPResult & EC_MKBP_FP_ENROLL) {
         switch (EC_MKBP_FP_ERRCODE(MKBPResult)) {
         case EC_MKBP_FP_ERR_ENROLL_LOW_QUALITY:
+        case EC_MKBP_FP_ERR_ENROLL_IMMOBILE:
             *RejectDetail = WINBIO_FP_POOR_QUALITY;
+            Pipeline->SensorContext->CaptureData.WinBioHresult = WINBIO_E_BAD_CAPTURE;
             break;
         case EC_MKBP_FP_ERR_ENROLL_LOW_COVERAGE:
             *RejectDetail = WINBIO_FP_TOO_SHORT;
+            Pipeline->SensorContext->CaptureData.WinBioHresult = WINBIO_E_BAD_CAPTURE;
             break;
         default:
             break;
@@ -613,9 +616,11 @@ SensorAdapterFinishCapture(
         switch (EC_MKBP_FP_ERRCODE(MKBPResult)) {
         case EC_MKBP_FP_ERR_MATCH_NO_LOW_QUALITY:
             *RejectDetail = WINBIO_FP_POOR_QUALITY;
+            Pipeline->SensorContext->CaptureData.WinBioHresult = WINBIO_E_BAD_CAPTURE;
             break;
         case EC_MKBP_FP_ERR_MATCH_NO_LOW_COVERAGE:
             *RejectDetail = WINBIO_FP_TOO_SHORT;
+            Pipeline->SensorContext->CaptureData.WinBioHresult = WINBIO_E_BAD_CAPTURE;
             break;
         default:
             break;
