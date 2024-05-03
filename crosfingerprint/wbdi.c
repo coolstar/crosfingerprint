@@ -235,13 +235,19 @@ CaptureFpData(
 	CrosFPPrint(DEBUG_LEVEL_INFO, DBG_IOCTL,
 		"Capture Params Purpose 0x%x, Format (0x%x 0x%x), Flags 0x%x\n", CaptureParams->Purpose, CaptureParams->Format.Owner, CaptureParams->Format.Type, CaptureParams->Flags);
 
+	CaptureData->PayloadSize = sizeof(CRFP_CAPTURE_DATA);
+	CaptureData->SensorStatus = WINBIO_SENSOR_READY;
+	CaptureData->RejectDetail = 0;
+	CaptureData->DataSize = 0;
+	CaptureData->FPMKBPValue = 0;
+
 	if (CaptureParams->Format.Owner != WINBIO_ANSI_381_FORMAT_OWNER || CaptureParams->Format.Type != WINBIO_ANSI_381_FORMAT_TYPE) {
 		CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_DATA_FORMAT;
 		WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
 		return status;
 	}
 
-	if (CaptureParams->Flags != WINBIO_DATA_FLAG_PROCESSED) {
+	if (CaptureParams->Flags != WINBIO_DATA_FLAG_RAW && CaptureParams->Flags != WINBIO_DATA_FLAG_PROCESSED) {
 		CaptureData->WinBioHresult = WINBIO_E_UNSUPPORTED_DATA_TYPE;
 		WdfRequestSetInformation(Request, sizeof(CRFP_CAPTURE_DATA));
 		return status;
@@ -406,7 +412,40 @@ void CompleteFPRequest(
 
 	CaptureData->PayloadSize = sizeof(CRFP_CAPTURE_DATA);
 	CaptureData->WinBioHresult = S_OK;
+	CaptureData->SensorStatus = WINBIO_SENSOR_ACCEPT;
+	CaptureData->RejectDetail = 0;
+	CaptureData->DataSize = sizeof(DWORD);
 	CaptureData->FPMKBPValue = fp_events;
+
+	if (CaptureData->FPMKBPValue & EC_MKBP_FP_ENROLL) {
+		switch (EC_MKBP_FP_ERRCODE(CaptureData->FPMKBPValue)) {
+		case EC_MKBP_FP_ERR_ENROLL_LOW_QUALITY:
+		case EC_MKBP_FP_ERR_ENROLL_IMMOBILE:
+			CaptureData->SensorStatus = WINBIO_SENSOR_REJECT;
+			CaptureData->RejectDetail = WINBIO_FP_POOR_QUALITY;
+			break;
+		case EC_MKBP_FP_ERR_ENROLL_LOW_COVERAGE:
+			CaptureData->SensorStatus = WINBIO_SENSOR_REJECT;
+			CaptureData->RejectDetail = WINBIO_FP_TOO_SHORT;
+			break;
+		default:
+			break;
+		}
+	}
+	else if (CaptureData->FPMKBPValue & EC_MKBP_FP_MATCH) {
+		switch (EC_MKBP_FP_ERRCODE(CaptureData->FPMKBPValue)) {
+		case EC_MKBP_FP_ERR_MATCH_NO_LOW_QUALITY:
+			CaptureData->SensorStatus = WINBIO_SENSOR_REJECT;
+			CaptureData->RejectDetail = WINBIO_FP_POOR_QUALITY;
+			break;
+		case EC_MKBP_FP_ERR_MATCH_NO_LOW_COVERAGE:
+			CaptureData->SensorStatus = WINBIO_SENSOR_REJECT;
+			CaptureData->RejectDetail = WINBIO_FP_TOO_SHORT;
+			break;
+		default:
+			break;
+		}
+	}
 
 exit:
 	devContext->CurrentCapture = NULL;
