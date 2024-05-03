@@ -1107,6 +1107,21 @@ EngineAdapterCommitEnrollment(
         indexElementCount = Pipeline->StorageContext->IndexElementCount;
     }
 
+    if (SubFactor == WINBIO_ANSI_381_POS_UNKNOWN) {
+        hr = E_INVALIDARG;
+
+        SIZE_T ReceivedSz;
+        ULONG Status;
+        WbioStorageControlUnit(Pipeline,
+            StorageControlCodeUploadToHw,
+            NULL, 0,
+            NULL, 0,
+            &ReceivedSz,
+            &Status);
+
+        goto cleanup;
+    }
+
     newTemplate.Identity = Identity;
     newTemplate.SubFactor = SubFactor;
     newTemplate.IndexVector = &indexElementCount;
