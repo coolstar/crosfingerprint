@@ -40,7 +40,6 @@ NOTES:
 #include "precomp.h"
 #include "winbio_adapter.h"
 #include "StorageAdapter.h"
-#include <Shlwapi.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -423,11 +422,6 @@ StorageAdapterCreateDatabase(
 
     if (wcscmp(FilePath, L"") == 0) {
         FilePath = L"C:\\Windows\\Temp\\crfptestdb.bin";
-    }
-
-    if (!PathFileExistsW(FilePath)) {
-        hr = WINBIO_E_DATABASE_CANT_CREATE;
-        goto cleanup;
     }
 
     HANDLE databaseFile = CreateFile(
