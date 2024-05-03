@@ -507,7 +507,9 @@ StorageAdapterEraseDatabase(
     }
     else {
         if (!DeleteFile(FilePath)) {
-            hr = WINBIO_E_DATABASE_CANT_ERASE;
+            if (GetLastError() != ERROR_FILE_NOT_FOUND) {
+                hr = WINBIO_E_DATABASE_CANT_ERASE;
+            }
         }
     }
 
