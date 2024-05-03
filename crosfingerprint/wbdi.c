@@ -265,7 +265,9 @@ CaptureFpData(
 
 		p.mode = FP_MODE_DONT_CHANGE;
 
-		if (CaptureParams->Purpose == WINBIO_PURPOSE_IDENTIFY || CaptureParams->Purpose == WINBIO_PURPOSE_VERIFY)
+		if (CaptureParams->Purpose == WINBIO_PURPOSE_IDENTIFY ||
+			CaptureParams->Purpose == WINBIO_PURPOSE_VERIFY ||
+			CaptureParams->Purpose == WINBIO_PURPOSE_AUDIT)
 			p.mode = FP_MODE_CAPTURE | FP_MODE_MATCH | FP_MODE_FINGER_DOWN | FP_MODE_FINGER_UP;
 		else if (CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL ||
 			CaptureParams->Purpose == WINBIO_PURPOSE_ENROLL_FOR_IDENTIFICATION ||
