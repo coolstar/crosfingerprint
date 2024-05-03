@@ -421,6 +421,10 @@ StorageAdapterCreateDatabase(
         goto cleanup;
     }
 
+    if (wcscmp(FilePath, L"") == 0) {
+        FilePath = L"C:\\Windows\\Temp\\crfptestdb.bin";
+    }
+
     if (!PathFileExistsW(FilePath)) {
         hr = WINBIO_E_DATABASE_CANT_CREATE;
         goto cleanup;
@@ -482,6 +486,11 @@ StorageAdapterEraseDatabase(
         goto cleanup;
     }
 
+    if (wcscmp(FilePath, L"") == 0) {
+        FilePath = L"C:\\Windows\\Temp\\crfptestdb.bin";
+    }
+
+    DebugLog("%s: Context 0x%x handle 0x%x\n", __func__, Pipeline->StorageContext, Pipeline->StorageHandle);
     if (Pipeline->StorageContext == NULL) {
         hr = WINBIO_E_INVALID_DEVICE_STATE;
         goto cleanup;
@@ -527,6 +536,10 @@ StorageAdapterOpenDatabase(
     {
         hr = E_POINTER;
         goto cleanup;
+    }
+
+    if (wcscmp(FilePath, L"") == 0) {
+        FilePath = L"C:\\Windows\\Temp\\crfptestdb.bin";
     }
 
     // Retrieve the context from the pipeline.
