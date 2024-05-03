@@ -564,6 +564,7 @@ StorageAdapterOpenDatabase(
         );
         if (Pipeline->StorageHandle == INVALID_HANDLE_VALUE) {
             hr = WINBIO_E_DATABASE_CANT_OPEN;
+            goto cleanup;
         }
     }
 
