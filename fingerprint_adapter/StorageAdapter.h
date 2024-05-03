@@ -84,6 +84,8 @@ typedef struct _WINIBIO_STORAGE_CONTEXT {
     GUID DataFormat;
     UINT32 IndexElementCount;
 
+    BOOLEAN AllowCreateOnOpen;
+
     ULONG RecordCursor;
     std::vector<CRFP_STORAGE_RECORD> Database;
     std::vector<PCRFP_STORAGE_RECORD> Records;

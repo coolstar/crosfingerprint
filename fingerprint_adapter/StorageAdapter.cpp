@@ -442,7 +442,11 @@ StorageAdapterCreateDatabase(
     Pipeline->StorageContext->DataFormat = *Format;
     Pipeline->StorageContext->IndexElementCount = IndexElementCount;
 
+    Pipeline->StorageContext->AllowCreateOnOpen = TRUE;
+
     hr = WbioStorageOpenDatabase(Pipeline, DatabaseId, FilePath, ConnectString);
+
+    Pipeline->StorageContext->AllowCreateOnOpen = FALSE;
 
     SIZE_T ReceivedSz;
     ULONG Status;
@@ -558,12 +562,12 @@ StorageAdapterOpenDatabase(
             GENERIC_READ | GENERIC_WRITE,
             0,
             NULL,
-            OPEN_ALWAYS,
+            storageContext->AllowCreateOnOpen ? OPEN_ALWAYS : OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             NULL
         );
         if (Pipeline->StorageHandle == INVALID_HANDLE_VALUE) {
-            hr = WINBIO_E_DATABASE_CANT_OPEN;
+            hr = WINBIO_E_DATABASE_CANT_FIND;
             goto cleanup;
         }
     }
