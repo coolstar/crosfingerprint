@@ -16,6 +16,6 @@ Notes for WHQL verification:
 * Chrome MCU doesn't report bad reads on match, and instead reports it as "no match"
 
 WHQL WBDI tests are expected to pass 100% of sequence and sensor tests, but only 97.37% of storage and 91.67% engine.
-  1 storage test fails due to duplicates
-  2 engine tests fail due to duplicates
-  2 engine tests fail due to no bad reads
+* 1 storage test fails due to duplicates
+* 2 engine tests fail due to duplicates
+* 2 engine tests fail due to no bad reads
